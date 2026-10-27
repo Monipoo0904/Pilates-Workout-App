@@ -1,6 +1,9 @@
+// xcode: set sdk=iOS
+
 import SwiftUI
 
-@main struct MyApp: App {
+@main
+struct PilatesTimerApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
