@@ -17,6 +17,7 @@ PilatesTimer is an iOS + watchOS app for managing Pilates workouts, timing class
 - `watchOS/` — Apple Watch app code
 - `Tests/` — test targets and validation files
 - `PilatesTimerProject.xcodeproj` — Xcode project definition
+- `CODING_NOTES.md` — contributor notes and architecture overview
 
 ## Requirements
 
