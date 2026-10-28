@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @StateObject private var classStore = ClassStore()
     @StateObject private var logStore = LogStore()
+    @StateObject private var studentStore = StudentStore()
     @StateObject private var connectivity = PhoneConnectivityManager()
 
     var body: some View {
@@ -16,11 +17,17 @@ struct ContentView: View {
 
             HoursView()
                 .tabItem { Label("Hours", systemImage: "clock.badge.checkmark") }
+
+            NavigationStack {
+                StudentsView()
+            }
+            .tabItem { Label("Students", systemImage: "person.2") }
         }
         .tint(Theme.rose)
         .preferredColorScheme(.light)
         .environmentObject(classStore)
         .environmentObject(logStore)
+        .environmentObject(studentStore)
         .environmentObject(connectivity)
         .onChange(of: connectivity.latestWatchLogs) { _, logs in
             logStore.mergeRemote(logs)
@@ -1309,6 +1316,476 @@ private struct LogSessionForm: View {
         )
         logStore.add(entry)
         dismiss()
+    }
+}
+
+// MARK: - Students Tab
+
+/// Main Students tab showing:
+/// - List of students with name, contact, injuries
+/// - Add button to create new student
+/// - Search and sort
+/// - Student detail view with teaching history
+struct StudentsView: View {
+    @EnvironmentObject private var studentStore: StudentStore
+    @EnvironmentObject private var logStore: LogStore
+    
+    @State private var showAddForm = false
+    @State private var searchText = ""
+    @State private var sortByName = true
+    
+    private var filteredStudents: [Student] {
+        let filtered = searchText.isEmpty ? studentStore.students : studentStore.students.filter { $0.name.lowercased().contains(searchText.lowercased()) }
+        return sortByName ? filtered.sorted { $0.name.lowercased() < $1.name.lowercased() } : filtered
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("STUDENTS")
+                    .font(.caption.weight(.bold))
+                    .tracking(2)
+                    .foregroundStyle(Theme.gold)
+                Text("Manage your teaching clients")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.brown.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .background(Theme.blush)
+            
+            // Search bar
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Theme.petal)
+                TextField("Search students", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(Theme.petal)
+                    }
+                }
+            }
+            .padding(12)
+            .background(Color.white)
+            .cornerRadius(10)
+            .padding(16)
+            
+            // List
+            if filteredStudents.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Theme.petal)
+                    Text(searchText.isEmpty ? "No students yet" : "No matching students")
+                        .font(.headline)
+                        .foregroundStyle(Theme.brown)
+                    Button(action: { showAddForm = true }) {
+                        Text("Add your first student")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+                .padding(40)
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(filteredStudents, id: \.id) { student in
+                            NavigationLink(destination: StudentDetailView(student: student)) {
+                                StudentRowView(student: student, logStore: logStore)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+            
+            Spacer()
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { showAddForm = true }) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(Theme.rose)
+                        .font(.system(size: 20))
+                }
+            }
+        }
+        .sheet(isPresented: $showAddForm) {
+            StudentFormView(studentStore: studentStore, editingStudent: nil)
+        }
+    }
+}
+
+// MARK: - Student Row View
+private struct StudentRowView: View {
+    let student: Student
+    let logStore: LogStore
+    
+    private var teachingHours: Double {
+        logStore.logs
+            .filter { $0.type == .teaching && $0.studentIds?.contains(student.id) == true }
+            .reduce(0) { $0 + $1.hours }
+    }
+    
+    private var lastSessionDate: Date? {
+        logStore.logs
+            .filter { $0.type == .teaching && $0.studentIds?.contains(student.id) == true }
+            .max { $0.date < $1.date }?
+            .date
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(student.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    
+                    if let contact = student.contact {
+                        Text(contact)
+                            .font(.caption)
+                            .foregroundStyle(Theme.brown.opacity(0.6))
+                    }
+                    
+                    HStack(spacing: 8) {
+                        Text("\(String(format: "%.1f", teachingHours)) h taught")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.gold)
+                        
+                        if let lastDate = lastSessionDate {
+                            Text("Last: \(lastDate, style: .date)")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    if let injuries = student.injuries {
+                        Chip(text: "⚠️ Injuries", tint: Theme.clay)
+                    }
+                    Image(systemName: "chevron.right")
+                        .foregroundStyle(Theme.petal)
+                        .font(.caption.weight(.semibold))
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Theme.petal.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Student Detail View
+private struct StudentDetailView: View {
+    @EnvironmentObject private var studentStore: StudentStore
+    @EnvironmentObject private var logStore: LogStore
+    
+    let student: Student
+    @State private var editingStudent: Student?
+    @State private var showEditForm = false
+    
+    private var teachingSessions: [ClassLogEntry] {
+        logStore.logs
+            .filter { $0.type == .teaching && $0.studentIds?.contains(student.id) == true }
+            .sorted { $0.date > $1.date }
+    }
+    
+    private var totalHoursWithStudent: Double {
+        teachingSessions.reduce(0) { $0 + $1.hours }
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header card
+                VStack(spacing: 12) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(student.name)
+                                .font(.title2.weight(.bold))
+                                .foregroundStyle(Theme.berry)
+                            
+                            if let contact = student.contact {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "phone.fill")
+                                        .font(.caption)
+                                    Text(contact)
+                                }
+                                .font(.caption)
+                                .foregroundStyle(Theme.brown.opacity(0.7))
+                            }
+                        }
+                        
+                        Spacer()
+                        
+                        Button(action: { showEditForm = true }) {
+                            Image(systemName: "pencil.circle.fill")
+                                .foregroundStyle(Theme.rose)
+                                .font(.system(size: 24))
+                        }
+                    }
+                    
+                    HStack(spacing: 16) {
+                        VStack(spacing: 4) {
+                            Text(String(format: "%.1f", totalHoursWithStudent))
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(Theme.gold)
+                            Text("hours taught")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(12)
+                        .background(Theme.gold.opacity(0.1))
+                        .cornerRadius(8)
+                        
+                        VStack(spacing: 4) {
+                            Text("\(teachingSessions.count)")
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(Theme.sage)
+                            Text("sessions")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(12)
+                        .background(Theme.sage.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                
+                // Details section
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Student Details")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    
+                    if let injuries = student.injuries {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Injuries / Limitations", systemImage: "exclamationmark.circle.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.clay)
+                            Text(injuries)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.brown)
+                        }
+                        .padding(12)
+                        .background(Theme.clay.opacity(0.05))
+                        .cornerRadius(8)
+                    }
+                    
+                    if let goals = student.goals {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Goals", systemImage: "star.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.gold)
+                            Text(goals)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.brown)
+                        }
+                        .padding(12)
+                        .background(Theme.gold.opacity(0.05))
+                        .cornerRadius(8)
+                    }
+                    
+                    if let notes = student.notes {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Label("Notes", systemImage: "note.text")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Theme.sage)
+                            Text(notes)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.brown)
+                        }
+                        .padding(12)
+                        .background(Theme.sage.opacity(0.05))
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                
+                // Teaching sessions
+                if !teachingSessions.isEmpty {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Teaching Sessions")
+                            .font(.headline)
+                            .foregroundStyle(Theme.berry)
+                        
+                        ForEach(teachingSessions, id: \.id) { session in
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(session.className)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(Theme.berry)
+                                        Text(session.date, style: .date)
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.brown.opacity(0.6))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Text("\(String(format: "%.2f", session.hours)) h")
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(Theme.gold)
+                                }
+                                
+                                if let place = session.place {
+                                    Text(place)
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.brown.opacity(0.6))
+                                }
+                                
+                                if let note = session.note {
+                                    Text(note)
+                                        .font(.caption2)
+                                        .foregroundStyle(Theme.brown.opacity(0.7))
+                                        .italic()
+                                }
+                            }
+                            .padding(12)
+                            .background(Theme.cream)
+                            .cornerRadius(8)
+                        }
+                    }
+                    .padding(16)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                }
+            }
+            .padding(16)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle(student.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showEditForm) {
+            StudentFormView(studentStore: studentStore, editingStudent: student)
+        }
+    }
+}
+
+// MARK: - Student Form View
+private struct StudentFormView: View {
+    @Environment(\.dismiss) var dismiss
+    let studentStore: StudentStore
+    let editingStudent: Student?
+    
+    @State private var name = ""
+    @State private var contact = ""
+    @State private var injuries = ""
+    @State private var goals = ""
+    @State private var notes = ""
+    
+    private var isValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Student Name") {
+                    TextField("Name", text: $name)
+                }
+                
+                Section("Contact") {
+                    TextField("Phone, email, etc.", text: $contact)
+                }
+                
+                Section("Injuries / Limitations") {
+                    TextEditor(text: $injuries)
+                        .frame(height: 80)
+                }
+                
+                Section("Goals") {
+                    TextEditor(text: $goals)
+                        .frame(height: 80)
+                }
+                
+                Section("Notes") {
+                    TextEditor(text: $notes)
+                        .frame(height: 80)
+                }
+                
+                Section {
+                    Button(action: saveStudent) {
+                        Text(editingStudent == nil ? "Add Student" : "Save Changes")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(isValid ? Theme.rose : Theme.petal)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isValid)
+                    
+                    if editingStudent != nil {
+                        Button(role: .destructive, action: deleteStudent) {
+                            Text("Delete Student")
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(editingStudent == nil ? "Add Student" : "Edit Student")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
+            }
+            .preferredColorScheme(.light)
+            .onAppear {
+                if let student = editingStudent {
+                    name = student.name
+                    contact = student.contact ?? ""
+                    injuries = student.injuries ?? ""
+                    goals = student.goals ?? ""
+                    notes = student.notes ?? ""
+                }
+            }
+        }
+    }
+    
+    private func saveStudent() {
+        let student = Student(
+            id: editingStudent?.id ?? UUID(),
+            name: name,
+            contact: contact.isEmpty ? nil : contact,
+            injuries: injuries.isEmpty ? nil : injuries,
+            goals: goals.isEmpty ? nil : goals,
+            notes: notes.isEmpty ? nil : notes
+        )
+        studentStore.addOrReplace(student)
+        dismiss()
+    }
+    
+    private func deleteStudent() {
+        if let student = editingStudent {
+            studentStore.delete(student)
+            dismiss()
+        }
     }
 }
 
