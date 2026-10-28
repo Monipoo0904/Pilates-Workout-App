@@ -5,7 +5,7 @@ import Foundation
 enum SampleData {
     static let fallIntoPilates = PilatesClass(
         id: "fall-into-pilates-45",
-        name: "Fall Into Pilates · Outdoor (45 min)",
+        name: "Fall Into Pilates · Outdoor (47 min)",
         props: ["Mat"],
         items: [
             // Ending at top
