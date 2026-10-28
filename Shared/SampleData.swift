@@ -8,7 +8,10 @@ enum SampleData {
         name: "Fall Into Pilates · Outdoor (45 min)",
         props: ["Mat"],
         items: [
-            PilatesClassItem(section: "Opening", name: "Welcome & check-in", reps: "", seconds: 180, cue: "Mats in rows facing me, arm's length apart. \"Is anyone pregnant, injured, or dealing with back, neck, knee or shoulder pain? If anything hurts, stop and rest.\" Explain the Powerhouse and the scoop.", transition: "Lie down on your back, knees bent, feet flat."),
+            // Ending at top
+            PilatesClassItem(section: "Ending", name: "Roll Down & 2 breaths", reps: "3", seconds: 180, cue: "Stand tall, chin to chest, roll down one bone at a time and roll back up. Two big breaths together."),
+            PilatesClassItem(section: "Ending", name: "Thank you & gift bags", reps: "", seconds: 120, cue: "Thank everyone, hand out gift bags, take the group photo, and share how to join a Vitality Village."),
+            // Main workout (45 min, no opening)
             PilatesClassItem(section: "Centering", name: "Breathing", reps: "5 breaths", seconds: 120, cue: "Inhale wide into the back and sides of the ribs. Exhale, scoop the belly in and up, ribs soften.", buildingBlock: "Hands on the ribs to feel them widen."),
             PilatesClassItem(section: "Centering", name: "Imprint & Iso-Abs", reps: "5 holds", seconds: 180, cue: "Exhale, gently imprint the low back into the mat. Hold the scoop and keep breathing. Release and repeat.", modification: "Low back pain: keep a small natural curve.", transition: "Hug the knees into the chest."),
             PilatesClassItem(section: "Mat flow", name: "Hundred", reps: "10 breaths", seconds: 120, cue: "Curl up, eyes to belly, arms long, legs up. \"Pump small and strong. Inhale 2, 3, 4, 5. Exhale 2, 3, 4, 5.\"", buildingBlock: "Bend the knees into tabletop.", modification: "Neck strain: keep the head down on the mat.", transition: "Hug knees in, lower the head, legs long, arms overhead."),
@@ -23,8 +26,6 @@ enum SampleData {
             PilatesClassItem(section: "Stretch", name: "Spine Stretch Forward", reps: "4–5", seconds: 180, cue: "Feet flexed. Exhale, round forward like rolling over a big ball. Inhale, stack up tall.", buildingBlock: "Sit on a folded towel and bend the knees.", modification: "Osteoporosis: hinge forward with a flat back instead of rounding.", transition: "Turn onto your stomach, hands under the shoulders."),
             PilatesClassItem(section: "Stretch", name: "Swan Prep", reps: "4–5", seconds: 150, cue: "Lift the chest with the upper back, belly scooped, shoulders away from the ears. Lower with control.", modification: "Low back pain: keep it small, forearms down.", transition: "Come to sit, knees in, hands through to the ankles."),
             PilatesClassItem(section: "Stretch", name: "Seal", reps: "6", seconds: 150, cue: "Balance just behind the sit bones. Clap the feet 3 times, roll back, roll up and clap.", buildingBlock: "Rock without the claps.", modification: "Neck or back issues, osteoporosis: skip and hold the balance.", transition: "Come up to standing."),
-            PilatesClassItem(section: "Ending", name: "Roll Down & 2 breaths", reps: "3", seconds: 180, cue: "Stand tall, chin to chest, roll down one bone at a time and roll back up. Two big breaths together."),
-            PilatesClassItem(section: "Ending", name: "Thank you & gift bags", reps: "", seconds: 120, cue: "Thank everyone, hand out gift bags, take the group photo, and share how to join a Vitality Village.")
         ]
     )
 
