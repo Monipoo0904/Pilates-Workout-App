@@ -2,6 +2,10 @@
   "id" : "153f1d04-b944-4268-8bea-7cd255616a50",
   "targets" : [
     {
+      "id" : "4211b173-7306-4bd8-a905-1b380a4a2a85",
+      "name" : "PilatesTimerProject"
+    },
+    {
       "id" : "b794c723-5d97-4300-a6fa-44752270fbdf",
       "name" : "PilatesTimerWatchApp Watch App"
     }
