@@ -426,6 +426,16 @@ struct ClassDetailView: View {
                             .foregroundStyle(Theme.rose)
                             .padding(.top, 8)
                     }
+                    // Add series header if series changes
+                    if index == 0 || plan.orderedItems[index - 1].series != item.series {
+                        HStack(spacing: 8) {
+                            Chip(text: item.series.label, tint: Theme.gold)
+                            Text("series")
+                                .font(.caption)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        }
+                        .padding(.top, 4)
+                    }
                     MoveCard(item: item)
                 }
 
@@ -1616,13 +1626,20 @@ struct CustomClassBuilderView: View {
         !name.trimmingCharacters(in: .whitespaces).isEmpty && !items.isEmpty
     }
     
+    // Filter moves that use ANY of the selected props
     private var suggestedMoves: [LibraryMove] {
         if selectedProps.isEmpty {
             return libraryStore.moves
         }
         return libraryStore.moves.filter { move in
-            selectedProps.allSatisfy { prop in move.props.contains(prop) }
+            // Show moves that have at least one prop matching selectedProps
+            move.props.contains { prop in selectedProps.contains(prop) }
         }
+    }
+    
+    // Moves with ANY selected props, grouped by series
+    private var suggestedMovesByAreas: [ExerciseArea: [LibraryMove]] {
+        Dictionary(grouping: suggestedMoves, by: { $0.area })
     }
     
     var body: some View {
@@ -1650,6 +1667,59 @@ struct CustomClassBuilderView: View {
                                         selectedProps.remove(prop)
                                     } else {
                                         selectedProps.insert(prop)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Suggested moves based on selected props
+                    if !selectedProps.isEmpty && !suggestedMoves.isEmpty {
+                        Section("Suggested Moves") {
+                            VStack(alignment: .leading, spacing: 12) {
+                                ForEach(Array(suggestedMovesByAreas.keys.sorted { $0.rawValue < $1.rawValue }), id: \.self) { area in
+                                    if let moves = suggestedMovesByAreas[area], !moves.isEmpty {
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            Text(area.rawValue.capitalized)
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(Theme.berry)
+                                            
+                                            VStack(spacing: 6) {
+                                                ForEach(moves.prefix(3), id: \.id) { move in
+                                                    HStack {
+                                                        VStack(alignment: .leading, spacing: 2) {
+                                                            Text(move.name)
+                                                                .font(.caption.weight(.semibold))
+                                                                .foregroundStyle(Theme.brown)
+                                                            if !move.props.isEmpty {
+                                                                Text(move.props.joined(separator: ", "))
+                                                                    .font(.caption2)
+                                                                    .foregroundStyle(Theme.petal)
+                                                            }
+                                                        }
+                                                        Spacer()
+                                                        Button(action: {
+                                                            let item = PilatesClassItem(
+                                                                name: move.name,
+                                                                reps: move.reps,
+                                                                seconds: move.seconds,
+                                                                cue: move.cue,
+                                                                buildingBlock: move.buildingBlock,
+                                                                modification: move.modification,
+                                                                props: move.props
+                                                            )
+                                                            items.append(item)
+                                                        }) {
+                                                            Image(systemName: "plus.circle.fill")
+                                                                .foregroundStyle(Theme.sage)
+                                                        }
+                                                    }
+                                                    .padding(6)
+                                                    .background(Theme.cream)
+                                                    .cornerRadius(4)
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
