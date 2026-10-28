@@ -78,6 +78,7 @@ final class StudentStore: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         fileURL = docs.appendingPathComponent(filename)
         load()
+        importWebTrackerIfNeeded()
     }
 
     func load() {
@@ -87,6 +88,19 @@ final class StudentStore: ObservableObject {
             return
         }
         students = decoded
+    }
+
+    /// Adds the students from the web tracker, once.
+    private func importWebTrackerIfNeeded() {
+        let key = "didImportWebTrackerStudents.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let names = Set(students.map { $0.name.lowercased() })
+        let new = WebTrackerImport.students.filter { !names.contains($0.name.lowercased()) }
+        if !new.isEmpty {
+            students = (students + new).sorted { $0.name.lowercased() < $1.name.lowercased() }
+            save()
+        }
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     func save() {
@@ -132,6 +146,7 @@ final class CourseStore: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         fileURL = docs.appendingPathComponent(filename)
         load()
+        importWebTrackerIfNeeded()
     }
 
     func load() {
@@ -143,6 +158,23 @@ final class CourseStore: ObservableObject {
         }
         modules = mergeBuiltIns(into: decoded)
         if modules.count != decoded.count { save() }
+    }
+
+    /// Uses the real Peak course section names and the progress from the web tracker, once.
+    private func importWebTrackerIfNeeded() {
+        let key = "didImportWebTrackerCourse.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        for module in WebTrackerImport.modules {
+            if let index = modules.firstIndex(where: { $0.id == module.id }) {
+                modules[index].title = module.title
+                modules[index].notes = module.notes
+                if module.done { modules[index].done = true }
+            } else {
+                modules.append(module)
+            }
+        }
+        save()
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     func save() {

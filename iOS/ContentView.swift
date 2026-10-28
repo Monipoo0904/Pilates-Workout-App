@@ -46,34 +46,36 @@ struct ContentView: View {
 
 struct ClassListView: View {
     @EnvironmentObject private var classStore: ClassStore
+    @EnvironmentObject private var libraryStore: LibraryStore
     @EnvironmentObject private var connectivity: PhoneConnectivityManager
 
     @State private var statusText = ""
     @State private var showImporter = false
-    @State private var showBuilder = false
+    @State private var showLevelIBuilder = false
+    @State private var showCustomBuilder = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("MYVILLAGE PROJECT")
+                    Text("CLASSES")
                         .font(.caption.weight(.bold))
                         .tracking(2)
                         .foregroundStyle(Theme.gold)
-                    Text("Pilates Timer")
-                        .font(Theme.display(40))
+                    Text("Plan & teach Peak Pilates Level I")
+                        .font(Theme.display(30))
                         .foregroundStyle(Theme.berry)
-                    Text("Breathe, move and teach with confidence.")
+                    Text("Build, customize, and run your class.")
                         .font(.subheadline)
                         .foregroundStyle(Theme.brown.opacity(0.8))
                 }
                 .padding(.top, 8)
 
                 HStack(spacing: 10) {
-                    ActionTile(title: "Paste", icon: "doc.on.clipboard") { pasteClass() }
+                    ActionTile(title: "Level I", icon: "list.bullet.clipboard") { showLevelIBuilder = true }
+                    ActionTile(title: "Custom", icon: "sparkles") { showCustomBuilder = true }
                     ActionTile(title: "Import", icon: "square.and.arrow.down") { showImporter = true }
-                    ActionTile(title: "Build", icon: "hammer.fill") { showBuilder = true }
-                    ActionTile(title: "Send to Watch", icon: "applewatch") {
+                    ActionTile(title: "Watch", icon: "applewatch") {
                         connectivity.sendClasses(classStore.classes)
                     }
                 }
@@ -89,22 +91,45 @@ struct ClassListView: View {
                     .foregroundStyle(Theme.berry)
                     .padding(.top, 4)
 
-                ForEach(classStore.classes, id: \.id) { classValue in
-                    NavigationLink {
-                        ClassDetailView(plan: classValue)
-                    } label: {
-                        ClassCard(plan: classValue)
+                if classStore.classes.isEmpty {
+                    VStack(spacing: 16) {
+                        Image(systemName: "document.badge.plus")
+                            .font(.system(size: 40))
+                            .foregroundStyle(Theme.petal)
+                        Text("No classes yet")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.brown)
+                        Text("Create a Level I class or build a custom routine.")
+                            .font(.caption)
+                            .foregroundStyle(Theme.brown.opacity(0.6))
                     }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .padding(40)
+                    .background(Theme.cream)
+                    .cornerRadius(12)
+                } else {
+                    ForEach(classStore.classes, id: \.id) { classValue in
+                        NavigationLink {
+                            ClassDetailView(plan: classValue)
+                        } label: {
+                            ClassCard(plan: classValue)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding(20)
         }
         .background(Theme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showBuilder) {
-            WorkoutBuilderView()
+        .sheet(isPresented: $showLevelIBuilder) {
+            LevelIMatBuilderView()
                 .environmentObject(classStore)
+        }
+        .sheet(isPresented: $showCustomBuilder) {
+            CustomClassBuilderView()
+                .environmentObject(classStore)
+                .environmentObject(libraryStore)
         }
         .fileImporter(isPresented: $showImporter, allowedContentTypes: [.json], allowsMultipleSelection: false) { result in
             switch result {
@@ -122,19 +147,6 @@ struct ClassListView: View {
             case .failure(let error):
                 statusText = error.localizedDescription
             }
-        }
-    }
-
-    private func pasteClass() {
-        guard let text = UIPasteboard.general.string else {
-            statusText = "Clipboard is empty."
-            return
-        }
-        do {
-            let parsed = try classStore.importFromClipboard(text)
-            statusText = "Imported: \(parsed.name) (\(parsed.items.count) moves)"
-        } catch {
-            statusText = error.localizedDescription
         }
     }
 }
@@ -1326,7 +1338,464 @@ private struct LogSessionForm: View {
     }
 }
 
+// MARK: - Level I Mat Builder
+
+/// Builder for Level I Classical Pilates Mat class
+/// Allows selecting which exercises to include; order is fixed
+struct LevelIMatBuilderView: View {
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject private var classStore: ClassStore
+    
+    @State private var name = ""
+    @State private var selectedProps: Set<String> = []
+    @State private var selectedExercises: Set<String> = Set(LevelIMatTemplate.exercises.map { $0.name })
+    @State private var showEndingPicker = false
+    
+    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball"]
+    private let endings = ["Rest", "Seal (3x)", "Push Ups (3x)", "Breathing"]
+    
+    private var isValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && !selectedExercises.isEmpty
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Form {
+                    Section("Class Name") {
+                        TextField("e.g., Monday Morning Class", text: $name)
+                    }
+                    
+                    Section("Props") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(commonProps, id: \.self) { prop in
+                                HStack {
+                                    Text(prop)
+                                    Spacer()
+                                    if selectedProps.contains(prop) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Theme.rose)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if selectedProps.contains(prop) {
+                                        selectedProps.remove(prop)
+                                    } else {
+                                        selectedProps.insert(prop)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Section("Exercises to Include") {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(LevelIMatTemplate.exercises, id: \.name) { exercise in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(exercise.name)
+                                            .font(.subheadline.weight(.semibold))
+                                        HStack(spacing: 8) {
+                                            if !exercise.reps.isEmpty {
+                                                Text(exercise.reps)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(Theme.brown.opacity(0.6))
+                                            }
+                                            if exercise.seconds > 0 {
+                                                Text("\(exercise.seconds)s")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(Theme.brown.opacity(0.6))
+                                            }
+                                        }
+                                    }
+                                    Spacer()
+                                    if selectedExercises.contains(exercise.name) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Theme.rose)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if selectedExercises.contains(exercise.name) {
+                                        selectedExercises.remove(exercise.name)
+                                    } else {
+                                        selectedExercises.insert(exercise.name)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Section {
+                        Button(action: saveClass) {
+                            Text("Create Class")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(12)
+                                .background(isValid ? Theme.rose : Theme.petal)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!isValid)
+                    }
+                }
+            }
+            .navigationTitle("Level I Mat")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
+            }
+            .preferredColorScheme(.light)
+        }
+    }
+    
+    private func saveClass() {
+        // Filter Level I template to selected exercises
+        let items = LevelIMatTemplate.exercises.filter { selectedExercises.contains($0.name) }
+        let newClass = PilatesClass(
+            name: name,
+            props: Array(selectedProps).sorted(),
+            items: items
+        )
+        classStore.addOrReplace(newClass)
+        dismiss()
+    }
+}
+
+// MARK: - Custom Class Builder
+
+/// Builder for custom Pilates classes
+/// Add moves from Library, reorder by drag, set reps/seconds
+struct CustomClassBuilderView: View {
+    @Environment(\.dismiss) var dismiss
+    @EnvironmentObject private var classStore: ClassStore
+    @EnvironmentObject private var libraryStore: LibraryStore
+    
+    @State private var name = ""
+    @State private var selectedProps: Set<String> = []
+    @State private var items: [PilatesClassItem] = []
+    @State private var showMoveSelector = false
+    @State private var showAddSection = false
+    @State private var newSectionName = ""
+    
+    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball"]
+    
+    private var isValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && !items.isEmpty
+    }
+    
+    private var suggestedMoves: [LibraryMove] {
+        if selectedProps.isEmpty {
+            return libraryStore.moves
+        }
+        return libraryStore.moves.filter { move in
+            selectedProps.allSatisfy { prop in move.props.contains(prop) }
+        }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Form {
+                    Section("Class Name") {
+                        TextField("e.g., Full-Body Flow", text: $name)
+                    }
+                    
+                    Section("Props") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(commonProps, id: \.self) { prop in
+                                HStack {
+                                    Text(prop)
+                                    Spacer()
+                                    if selectedProps.contains(prop) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Theme.rose)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    if selectedProps.contains(prop) {
+                                        selectedProps.remove(prop)
+                                    } else {
+                                        selectedProps.insert(prop)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    Section("Class Items") {
+                        if items.isEmpty {
+                            Text("Add moves to build your class")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        } else {
+                            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Theme.berry)
+                                    HStack(spacing: 12) {
+                                        if !item.reps.isEmpty {
+                                            Text(item.reps)
+                                                .font(.caption2)
+                                                .foregroundStyle(Theme.brown.opacity(0.6))
+                                        }
+                                        if item.seconds > 0 {
+                                            Text("\(item.seconds)s")
+                                                .font(.caption2)
+                                                .foregroundStyle(Theme.brown.opacity(0.6))
+                                        }
+                                        Spacer()
+                                        Button(action: { items.remove(at: index) }) {
+                                            Image(systemName: "trash.fill")
+                                                .font(.caption)
+                                                .foregroundStyle(Color.red)
+                                        }
+                                    }
+                                }
+                                .padding(8)
+                                .background(Theme.cream)
+                                .cornerRadius(6)
+                            }
+                        }
+                        
+                        HStack(spacing: 12) {
+                            Button(action: { showMoveSelector = true }) {
+                                Label("Add Move", systemImage: "plus.circle")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.rose)
+                            }
+                            
+                            Button(action: { showAddSection = true }) {
+                                Label("Add Section", systemImage: "text.aligncenter")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Theme.sage)
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                    
+                    Section {
+                        Button(action: saveClass) {
+                            Text("Create Class")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(12)
+                                .background(isValid ? Theme.rose : Theme.petal)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!isValid)
+                    }
+                }
+            }
+            .navigationTitle("Custom Class")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
+            }
+            .preferredColorScheme(.light)
+            .sheet(isPresented: $showMoveSelector) {
+                MoveSelectorView(suggestedMoves: suggestedMoves, selectedItems: $items)
+            }
+            .sheet(isPresented: $showAddSection) {
+                AddSectionView(section: $newSectionName, items: $items) {
+                    showAddSection = false
+                }
+            }
+        }
+    }
+    
+    private func saveClass() {
+        let newClass = PilatesClass(
+            name: name,
+            props: Array(selectedProps).sorted(),
+            items: items
+        )
+        classStore.addOrReplace(newClass)
+        dismiss()
+    }
+}
+
+// MARK: - Move Selector
+
+private struct MoveSelectorView: View {
+    let suggestedMoves: [LibraryMove]
+    @Binding var selectedItems: [PilatesClassItem]
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var searchText = ""
+    @State private var selectedArea = ExerciseArea.warmup
+    @State private var filterByArea = false
+    
+    private var filteredMoves: [LibraryMove] {
+        var result = suggestedMoves
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.lowercased().contains(searchText.lowercased()) }
+        }
+        if filterByArea {
+            result = result.filter { $0.area == selectedArea }
+        }
+        return result.sorted { $0.name.lowercased() < $1.name.lowercased() }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(Theme.petal)
+                    TextField("Search moves", text: $searchText)
+                        .textFieldStyle(.plain)
+                    if !searchText.isEmpty {
+                        Button(action: { searchText = "" }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Theme.petal)
+                        }
+                    }
+                }
+                .padding(12)
+                .background(Color.white)
+                .cornerRadius(10)
+                .padding(16)
+                
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(filteredMoves, id: \.id) { move in
+                            Button(action: { addMove(move) }) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(move.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Theme.berry)
+                                    HStack(spacing: 8) {
+                                        Chip(text: move.area.label, tint: Theme.gold)
+                                        if !move.reps.isEmpty {
+                                            Text(move.reps)
+                                                .font(.caption2)
+                                                .foregroundStyle(Theme.brown.opacity(0.6))
+                                        }
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(Color.white)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Add Move")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
+            }
+            .preferredColorScheme(.light)
+        }
+    }
+    
+    private func addMove(_ move: LibraryMove) {
+        let item = PilatesClassItem(
+            name: move.name,
+            reps: move.reps,
+            seconds: move.seconds,
+            cue: move.cue,
+            buildingBlock: move.buildingBlock,
+            modification: move.modification,
+            props: move.props,
+            series: .infer(from: move.name)
+        )
+        selectedItems.append(item)
+    }
+}
+
+// MARK: - Add Section
+
+private struct AddSectionView: View {
+    @Binding var section: String
+    @Binding var items: [PilatesClassItem]
+    let onDone: () -> Void
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 16) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Section Name")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    TextField("e.g., Warm-Up, Core Work, Cool Down", text: $section)
+                        .padding(12)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.petal.opacity(0.3), lineWidth: 1))
+                }
+                .padding(16)
+                
+                HStack(spacing: 12) {
+                    Button(action: { dismiss() }) {
+                        Text("Cancel")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.petal.opacity(0.3), lineWidth: 1))
+                    }
+                    
+                    Button(action: saveSection) {
+                        Text("Add")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(!section.trimmingCharacters(in: .whitespaces).isEmpty ? Theme.rose : Theme.petal)
+                            .cornerRadius(8)
+                    }
+                    .disabled(section.trimmingCharacters(in: .whitespaces).isEmpty)
+                }
+                .padding(16)
+                
+                Spacer()
+            }
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("New Section")
+            .navigationBarTitleDisplayMode(.inline)
+            .preferredColorScheme(.light)
+        }
+    }
+    
+    private func saveSection() {
+        let sectionItem = PilatesClassItem(
+            section: section,
+            name: "",  // Empty name marks this as a section header
+            cue: "",
+            buildingBlock: "",
+            modification: ""
+        )
+        items.append(sectionItem)
+        dismiss()
+        onDone()
+    }
+}
+
 // MARK: - Library Tab
+
 
 /// Main Library tab showing:
 /// - Search for exercise moves

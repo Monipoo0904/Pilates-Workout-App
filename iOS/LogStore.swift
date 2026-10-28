@@ -10,6 +10,7 @@ final class LogStore: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         fileURL = docs.appendingPathComponent(filename)
         load()
+        importWebTrackerIfNeeded()
     }
 
     func load() {
@@ -58,6 +59,19 @@ final class LogStore: ObservableObject {
             print("CSV export failed: \(error)")
             return nil
         }
+    }
+
+    /// Adds the sessions logged in the web tracker, once.
+    private func importWebTrackerIfNeeded() {
+        let key = "didImportWebTrackerLogs.v1"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let existing = Set(logs.map(\.id))
+        let new = WebTrackerImport.sessions.filter { !existing.contains($0.id) }
+        if !new.isEmpty {
+            logs = (logs + new).sorted { $0.date > $1.date }
+            save()
+        }
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     private func save() {

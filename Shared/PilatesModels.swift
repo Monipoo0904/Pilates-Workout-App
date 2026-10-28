@@ -281,3 +281,87 @@ enum ClassImportValidator {
         }
     }
 }
+
+// MARK: - Level I Mat Class Template
+/// Pre-built Level I Classical Pilates Mat class with full exercise progression
+enum LevelIMatTemplate {
+    static let exercises: [PilatesClassItem] = [
+        PilatesClassItem(
+            name: "The Hundred",
+            reps: "100 pumps",
+            seconds: 60,
+            setup: "Lie on your back with legs extended (or knees bent). Arms at your sides.",
+            cue: "Pump your arms while breathing in for 5 counts, out for 5.",
+            buildingBlock: "Chest lift with pumping arms.",
+            modification: "Keep feet on mat or knees bent.",
+            transition: "Lower your head and extend your legs.",
+            series: .abs
+        ),
+        PilatesClassItem(
+            name: "Roll Up",
+            reps: "3-5x",
+            seconds: 45,
+            setup: "Lie on your back with legs extended and arms overhead.",
+            cue: "Articulate one vertebra at a time, stacking up with control.",
+            buildingBlock: "Peel the spine off the mat.",
+            modification: "Bend knees or use a hold on the back of the thighs.",
+            transition: "Return to lying and prepare for Single Leg Circles.",
+            series: .abs
+        ),
+        PilatesClassItem(
+            name: "Single Leg Circles",
+            reps: "5-10x each",
+            seconds: 45,
+            setup: "Lie on your back with one leg extended toward the ceiling.",
+            cue: "Keep your hips stable and circle only from the hip.",
+            buildingBlock: "Stable pelvis while one leg circles.",
+            modification: "Smaller circles or hand under glutes for support.",
+            transition: "Switch legs and repeat.",
+            series: .abs
+        ),
+        PilatesClassItem(
+            name: "Rolling Like a Ball",
+            reps: "5-10 sets",
+            seconds: 45,
+            setup: "Sit in a ball position, holding behind your thighs.",
+            cue: "Move as one unit, holding behind the thighs with control.",
+            buildingBlock: "Imprint and roll massage the spine.",
+            modification: "Small rolls or stay in the ball position.",
+            transition: "Return to sitting and prepare for Single Leg Stretch.",
+            series: .abs
+        ),
+        PilatesClassItem(
+            name: "Single Leg Stretch",
+            reps: "5-10x each",
+            seconds: 45,
+            setup: "Lie on your back in crunch position with one knee pulled in.",
+            cue: "Lengthen the bottom leg while drawing the knee toward the chest.",
+            buildingBlock: "Crunch position with alternating pulls.",
+            modification: "Hands behind the head or smaller range.",
+            transition: "Release and prepare for Double Leg Stretch.",
+            series: .abs
+        ),
+        PilatesClassItem(
+            name: "Double Leg Stretch",
+            reps: "3-5x",
+            seconds: 45,
+            setup: "Lie on your back with both knees pulled to chest.",
+            cue: "Circle the arms as you extend the legs, then gather back in.",
+            buildingBlock: "Both legs extend while arms circle.",
+            modification: "Feet remain on mat or smaller range.",
+            transition: "Hug knees and prepare for Spine Stretch Forward.",
+            series: .abs
+        ),
+        PilatesClassItem(
+            name: "Spine Stretch Forward",
+            reps: "3-5x",
+            seconds: 30,
+            setup: "Sit with legs extended and feet hip-width apart.",
+            cue: "Flex the spine and fold forward with a long spine.",
+            buildingBlock: "Seated flexion, stacking vertebrae.",
+            modification: "Bent knees or hands on thighs.",
+            transition: "Roll up to sitting and return to lying for rest.",
+            series: .abs
+        ),
+    ]
+}

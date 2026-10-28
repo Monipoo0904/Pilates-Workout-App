@@ -229,16 +229,16 @@ struct CourseModule: Codable, Identifiable, Hashable {
 
 enum CourseModuleSet {
     static let standard: [CourseModule] = [
-        CourseModule(id: "s01", title: "Principles of Movement"),
-        CourseModule(id: "s02", title: "Basic Mat Work"),
-        CourseModule(id: "s03", title: "Breathing Techniques"),
-        CourseModule(id: "s04", title: "Core Engagement"),
-        CourseModule(id: "s05", title: "Flow & Transitions"),
-        CourseModule(id: "s06", title: "Modifications & Progressions"),
-        CourseModule(id: "s07", title: "Class Structure & Cueing"),
-        CourseModule(id: "s08", title: "Common Injuries & Adaptations"),
-        CourseModule(id: "s09", title: "Music & Pacing"),
-        CourseModule(id: "s10", title: "Teaching Strategies"),
+        CourseModule(id: "s01", title: "Section 1: Welcome to Level I Classical Mat"),
+        CourseModule(id: "s02", title: "Section 2: The Mat is the Method"),
+        CourseModule(id: "s03", title: "Section 3: Peak Pilates® Foundations"),
+        CourseModule(id: "s04", title: "Section 4: The Science of Movement"),
+        CourseModule(id: "s05", title: "Section 5: Mat Technique Basics"),
+        CourseModule(id: "s06", title: "Section 6: Optional Class Add-Ins"),
+        CourseModule(id: "s07", title: "Section 7: The Art of Teaching"),
+        CourseModule(id: "s08", title: "Section 8: Theoretical Exam"),
+        CourseModule(id: "s09", title: "Section 9: Practical Assessment"),
+        CourseModule(id: "s10", title: "Conclusion: feedback & evaluation"),
         CourseModule(id: "theoretical", title: "Theoretical Exam (50 questions, 60 min, pass 40)"),
         CourseModule(id: "practical", title: "Practical Assessment"),
     ]
@@ -296,5 +296,45 @@ enum LibraryMoveSet {
         LibraryMove(name: "Single Leg Stretch", area: .core, reps: "5-10x", cue: "Lengthen the bottom leg while drawing the knee toward the chest.", buildingBlock: "Crunch position with alternating pulls.", modification: "Hands behind the head or smaller range."),
         LibraryMove(name: "Double Leg Stretch", area: .core, reps: "3-5x", cue: "Circle the arms as you extend the legs, then gather back in.", buildingBlock: "Both legs extend while arms circle.", modification: "Feet remain on mat or smaller range."),
         LibraryMove(name: "Spine Stretch Forward", area: .stretch, reps: "3-5x", cue: "Flex the spine and fold forward with a long spine.", buildingBlock: "Seated flexion, stacking vertebrae.", modification: "Bent knees or hands on thighs."),
+    ]
+}
+
+// MARK: - Web tracker import (one time)
+/// Data copied from the Pilates hours web tracker on Oct 27, 2026.
+/// Each store adds it once on first launch after this update; your later edits are kept.
+enum WebTrackerImport {
+    static func day(_ ymd: String) -> Date {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        return f.date(from: ymd + " 12:00") ?? Date()
+    }
+
+    static let sessions: [ClassLogEntry] = [
+        ClassLogEntry(id: UUID(uuidString: "2cb528bc-358a-543f-9bca-fa08edefe956")!, date: day("2026-10-09"), type: .practice, hours: 1, className: "Practices at home", sourceDevice: "Web tracker"),
+        ClassLogEntry(id: UUID(uuidString: "201aec20-1ede-5eba-9e2a-d60a6733af89")!, date: day("2026-10-12"), type: .observation, hours: 1, className: "Observed Emily’s class", sourceDevice: "Web tracker"),
+        ClassLogEntry(id: UUID(uuidString: "c6291e33-da2f-529d-817a-665c0ea27e09")!, date: day("2026-10-12"), type: .practice, hours: 1, className: "Monday Mat class", sourceDevice: "Web tracker"),
+        ClassLogEntry(id: UUID(uuidString: "2ceac210-5f06-5f61-b0a8-4a11a320be85")!, date: day("2026-10-13"), type: .practice, hours: 1, className: "Reformer class", sourceDevice: "Web tracker"),
+        ClassLogEntry(id: UUID(uuidString: "bcb2ff92-8f06-5be8-a508-5f902238191e")!, date: day("2026-10-18"), type: .practice, hours: 0.25, className: "20-min Glute & Core with ball and block", sourceDevice: "Web tracker")
+    ]
+
+    static let students: [Student] = [
+        Student(id: UUID(uuidString: "15e7a28e-0b45-5275-8154-b93f98cbb7e2")!, name: "Jada"),
+        Student(id: UUID(uuidString: "c64461d6-92ec-5c27-abc3-fe428bd0d854")!, name: "Veronica")
+    ]
+
+    /// Real Peak Pilates Level I Classical Mat course sections and my progress.
+    static let modules: [CourseModule] = [
+        CourseModule(id: "s01", title: "Section 1: Welcome to Level I Classical Mat", done: true, notes: "15 items · study guide, exercise charts, required hours log, observation journal"),
+        CourseModule(id: "s02", title: "Section 2: The Mat is the Method", done: true, notes: "3 items · course overview, history"),
+        CourseModule(id: "s03", title: "Section 3: Peak Pilates® Foundations", done: true, notes: "In progress · 6 items left incl. The Fundamentals video (34 min) + Quiz 1 · Target: by Sun Oct 4"),
+        CourseModule(id: "s04", title: "Section 4: The Science of Movement", done: true, notes: "8 items · ~75 min anatomy video + Quiz 2 · Target: week of Oct 5"),
+        CourseModule(id: "s05", title: "Section 5: Mat Technique Basics", done: true, notes: "31 items · every exercise video (~85 min), workout, drill work + Quiz 3. Pairs well with home practice. · Target: weeks of Oct 12 and Oct 19"),
+        CourseModule(id: "s06", title: "Section 6: Optional Class Add-Ins", done: true, notes: "14 items · short videos (~17 min) + Quiz 5 · Target: week of Oct 26"),
+        CourseModule(id: "s07", title: "Section 7: The Art of Teaching", done: true, notes: "12 items · 5-Part Formula, cueing, class planning + Quiz 6, self assessment. Use it in your coworker sessions. · Target: week of Oct 26"),
+        CourseModule(id: "s08", title: "Section 8: Theoretical Exam", done: false, notes: "Practice exam, then the theoretical exam · Target: week of Nov 2"),
+        CourseModule(id: "s09", title: "Section 9: Practical Assessment", done: false, notes: "Prepare + set up practical, technique & teaching assessments, submit 50 logged hours. Read the setup article early. · Target: week of Nov 9 (submit by Nov 13)"),
+        CourseModule(id: "s10", title: "Conclusion: feedback & evaluation", done: false, notes: "2 items · Target: by Nov 13")
     ]
 }
