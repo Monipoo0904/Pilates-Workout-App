@@ -9,6 +9,7 @@ struct RunTarget: Hashable {
 
 struct WatchContentView: View {
     @EnvironmentObject private var classStore: WatchClassStore
+    @EnvironmentObject private var logStore: WatchLogStore
     @EnvironmentObject private var connectivity: WatchConnectivityManager
     @State private var path: [RunTarget] = []
 
@@ -24,6 +25,14 @@ struct WatchContentView: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
+                    .listRowBackground(Color.clear)
+                }
+
+                // MARK: - Hours Glance
+                /// Show today's logged hours and remaining hours per type
+                Section {
+                    WatchHoursGlanceView()
+                        .environmentObject(logStore)
                     .listRowBackground(Color.clear)
                 }
 
@@ -253,6 +262,153 @@ struct WatchRunView: View {
         )
         logStore.add(entry)
         connectivity.sendLogsToPhone()
+    }
+}
+
+// MARK: - Watch Hours Glance
+
+/// Shows today's logged hours and remaining hours per type
+private struct WatchHoursGlanceView: View {
+    @EnvironmentObject private var logStore: WatchLogStore
+    
+    // Certification goals
+    private let practiceGoal = 20.0
+    private let observationGoal = 10.0
+    private let teachingGoal = 20.0
+    
+    private var todayLogs: [ClassLogEntry] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return logStore.logs.filter { calendar.startOfDay(for: $0.date) == today }
+    }
+    
+    private var todayPractice: Double {
+        todayLogs.filter { $0.type == .practice }.reduce(0) { $0 + $1.hours }
+    }
+    
+    private var todayObservation: Double {
+        todayLogs.filter { $0.type == .observation }.reduce(0) { $0 + $1.hours }
+    }
+    
+    private var todayTeaching: Double {
+        todayLogs.filter { $0.type == .teaching }.reduce(0) { $0 + $1.hours }
+    }
+    
+    private var remainingPractice: Double {
+        max(0, practiceGoal - logStore.logs.filter { $0.type == .practice }.reduce(0) { $0 + $1.hours })
+    }
+    
+    private var remainingObservation: Double {
+        max(0, observationGoal - logStore.logs.filter { $0.type == .observation }.reduce(0) { $0 + $1.hours })
+    }
+    
+    private var remainingTeaching: Double {
+        max(0, teachingGoal - logStore.logs.filter { $0.type == .teaching }.reduce(0) { $0 + $1.hours })
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Today's Hours")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.gold)
+            
+            HStack(spacing: 4) {
+                // Practice
+                VStack(spacing: 2) {
+                    Text(String(format: "%.2f", todayPractice))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.berry)
+                    Text("Practice")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(6)
+                .background(Theme.gold.opacity(0.15))
+                .cornerRadius(4)
+                
+                // Observation
+                VStack(spacing: 2) {
+                    Text(String(format: "%.2f", todayObservation))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.sage)
+                    Text("Obs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(6)
+                .background(Theme.sage.opacity(0.15))
+                .cornerRadius(4)
+                
+                // Teaching
+                VStack(spacing: 2) {
+                    Text(String(format: "%.2f", todayTeaching))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.rose)
+                    Text("Teach")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(6)
+                .background(Theme.rose.opacity(0.15))
+                .cornerRadius(4)
+            }
+            
+            Divider()
+            
+            Text("Remaining Goals")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.gold)
+            
+            HStack(spacing: 4) {
+                // Remaining Practice
+                VStack(spacing: 2) {
+                    Text(String(format: "%.1f", remainingPractice))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.berry)
+                    Text("Practice")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(6)
+                .background(Theme.gold.opacity(0.1))
+                .cornerRadius(4)
+                
+                // Remaining Observation
+                VStack(spacing: 2) {
+                    Text(String(format: "%.1f", remainingObservation))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.sage)
+                    Text("Obs")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(6)
+                .background(Theme.sage.opacity(0.1))
+                .cornerRadius(4)
+                
+                // Remaining Teaching
+                VStack(spacing: 2) {
+                    Text(String(format: "%.1f", remainingTeaching))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.rose)
+                    Text("Teach")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(6)
+                .background(Theme.rose.opacity(0.1))
+                .cornerRadius(4)
+            }
+        }
+        .padding(8)
+        .background(Color(white: 0.12))
+        .cornerRadius(6)
     }
 }
 
