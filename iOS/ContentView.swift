@@ -373,7 +373,10 @@ struct WorkoutBuilderView: View {
 }
 
 struct ClassDetailView: View {
+    @EnvironmentObject private var classStore: ClassStore
+    
     let plan: PilatesClass
+    @State private var showEditForm = false
 
     var body: some View {
         ScrollView {
@@ -391,16 +394,25 @@ struct ClassDetailView: View {
                         .foregroundStyle(Theme.brown)
                 }
 
-                NavigationLink {
-                    PhoneRunView(plan: plan)
-                } label: {
-                    Label("Start class", systemImage: "play.fill")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Theme.rose, in: Capsule())
-                        .foregroundStyle(.white)
+                HStack(spacing: 12) {
+                    NavigationLink {
+                        PhoneRunView(plan: plan)
+                    } label: {
+                        Label("Start class", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(Theme.rose, in: Capsule())
+                            .foregroundStyle(.white)
+                    }
+                    
+                    Button(action: { showEditForm = true }) {
+                        Image(systemName: "pencil.circle.fill")
+                            .foregroundStyle(Theme.rose)
+                            .font(.system(size: 24))
+                    }
                 }
+                
                 Text("Your Apple Watch starts the same class automatically.")
                     .font(.caption)
                     .foregroundStyle(Theme.brown.opacity(0.7))
@@ -443,6 +455,117 @@ struct ClassDetailView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showEditForm) {
+            ClassEditFormView(classStore: classStore, editingClass: plan)
+        }
+    }
+}
+
+// MARK: - Class Edit Form
+private struct ClassEditFormView: View {
+    @Environment(\.dismiss) var dismiss
+    let classStore: ClassStore
+    let editingClass: PilatesClass
+    
+    @State private var name = ""
+    @State private var selectedProps: Set<String> = []
+    @State private var items: [PilatesClassItem] = []
+    
+    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball", "Mat"]
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Class Name") {
+                    TextField("Name", text: $name)
+                }
+                
+                Section("Props") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(commonProps, id: \.self) { prop in
+                            HStack {
+                                Text(prop)
+                                Spacer()
+                                if selectedProps.contains(prop) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Theme.rose)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if selectedProps.contains(prop) {
+                                    selectedProps.remove(prop)
+                                } else {
+                                    selectedProps.insert(prop)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Section("Exercises") {
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(item.name)
+                                        .font(.subheadline.weight(.semibold))
+                                    if !item.reps.isEmpty {
+                                        Text(item.reps)
+                                            .font(.caption2)
+                                            .foregroundStyle(Theme.brown.opacity(0.6))
+                                    }
+                                }
+                                Spacer()
+                                Button(action: { items.remove(at: index) }) {
+                                    Image(systemName: "trash.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(Color.red)
+                                }
+                            }
+                        }
+                        .padding(8)
+                        .background(Theme.cream)
+                        .cornerRadius(6)
+                    }
+                }
+                
+                Section {
+                    Button(action: saveClass) {
+                        Text("Save Changes")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Theme.rose)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .navigationTitle("Edit Class")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
+            }
+            .preferredColorScheme(.light)
+            .onAppear {
+                name = editingClass.name
+                selectedProps = Set(editingClass.props)
+                items = editingClass.items
+            }
+        }
+    }
+    
+    private func saveClass() {
+        var updated = editingClass
+        updated.name = name
+        updated.props = Array(selectedProps).sorted()
+        updated.items = items
+        classStore.addOrReplace(updated)
+        dismiss()
     }
 }
 
@@ -451,10 +574,15 @@ private struct MoveCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(item.name)
-                    .font(.headline)
-                    .foregroundStyle(Theme.berry)
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.name)
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    if !item.series.label.isEmpty {
+                        Chip(text: item.series.label, tint: Theme.gold)
+                    }
+                }
                 Spacer()
                 Text(TimeFormat.mmss(item.seconds))
                     .font(.subheadline.monospacedDigit().weight(.semibold))
