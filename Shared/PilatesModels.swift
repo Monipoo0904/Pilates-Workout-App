@@ -1,5 +1,14 @@
+// ======================================================================
+// PilatesModels.swift  (Shared by iPhone + Watch)
+// WHAT THIS FILE DOES: What a class and a move are made of (name, reps, seconds, cue, Building Block, Modification, transition, props), JSON import, and the Level I mat template.
+// TO CHANGE: Add a new field to every move: PilatesClassItem. Level I exercise list: LevelIMatTemplate.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 
+// WHAT: Groups moves into Lunge / Squat / Arms / Abs for the workout builder.
+// TO CHANGE: Which words put a move in a group: infer(from:) below.
 enum WorkoutSeries: String, Codable, CaseIterable, Identifiable {
     case lunge
     case squat
@@ -17,6 +26,7 @@ enum WorkoutSeries: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    // TO CHANGE: the words that put a move in Lunge / Squat / Arms / Abs.
     static func infer(from name: String, section: String = "") -> WorkoutSeries {
         let text = "\(name.lowercased()) \(section.lowercased())"
 
@@ -101,6 +111,8 @@ enum WorkoutSeries: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+// WHAT: A whole class: name, props, and its moves in teaching order.
+// TO CHANGE: Never sort items: the order here is the order you teach.
 struct PilatesClass: Codable, Identifiable, Hashable {
     var version: Int
     var id: String
@@ -148,16 +160,10 @@ struct PilatesClass: Codable, Identifiable, Hashable {
         items.reduce(0) { $0 + max($1.seconds, 0) }
     }
 
+    /// Moves in teaching order: exactly the order the class was written in.
+    /// (Never sort here; the timer, the class screen and the watch all follow this order.)
     var orderedItems: [PilatesClassItem] {
-        items.sorted { lhs, rhs in
-            let order: [String] = [WorkoutSeries.lunge.rawValue, WorkoutSeries.squat.rawValue, WorkoutSeries.arms.rawValue, WorkoutSeries.abs.rawValue]
-            let lhsIndex = order.firstIndex(of: lhs.series.rawValue) ?? Int.max
-            let rhsIndex = order.firstIndex(of: rhs.series.rawValue) ?? Int.max
-            if lhsIndex != rhsIndex { return lhsIndex < rhsIndex }
-            if lhs.section != rhs.section { return lhs.section < rhs.section }
-            if lhs.name != rhs.name { return lhs.name < rhs.name }
-            return lhs.seconds < rhs.seconds
-        }
+        items
     }
 
     var seriesBreakdown: [WorkoutSeries: [PilatesClassItem]] {
@@ -178,6 +184,7 @@ struct PilatesClass: Codable, Identifiable, Hashable {
     }
 }
 
+// WHAT: One move in a class: section, name, reps, seconds, setup, cue, Building Block, Modification, transition, props.
 struct PilatesClassItem: Codable, Hashable {
     var section: String
     var name: String
@@ -240,6 +247,7 @@ struct PilatesClassItem: Codable, Hashable {
     }
 }
 
+// WHAT: The JSON shape used by Paste / Import.
 struct ClassImportEnvelope: Codable {
     var version: Int
     var id: String
@@ -252,6 +260,8 @@ struct ClassImportEnvelope: Codable {
     }
 }
 
+// WHAT: Error messages shown when an import fails.
+// TO CHANGE: Edit the message text below.
 enum ClassImportError: LocalizedError {
     case invalidJSON
     case noItems
@@ -266,6 +276,7 @@ enum ClassImportError: LocalizedError {
     }
 }
 
+// WHAT: Checks pasted/imported JSON before adding a class.
 enum ClassImportValidator {
     static func parseClass(from data: Data) throws -> PilatesClass {
         do {
@@ -284,6 +295,8 @@ enum ClassImportValidator {
 
 // MARK: - Level I Mat Class Template
 /// Pre-built Level I Classical Pilates Mat class with full exercise progression
+// WHAT: The classical Level I mat exercises used by the Level I builder, in classical order.
+// TO CHANGE: Keep them in classical order.
 enum LevelIMatTemplate {
     static let exercises: [PilatesClassItem] = [
         PilatesClassItem(

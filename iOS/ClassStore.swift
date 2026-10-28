@@ -1,8 +1,17 @@
+// ======================================================================
+// ClassStore.swift  (iPhone app)
+// WHAT THIS FILE DOES: Saves and loads your data on the iPhone: classes, students, course modules, and library moves (each in its own JSON file).
+// TO CHANGE: Built-in content is in Shared/SampleData.swift and Shared/LogModels.swift; edit it there, not here.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 // xcode: set sdk=iOS
 
 import Foundation
 import Combine
 
+// WHAT: Your classes on the iPhone. Loads them, adds built-in classes you don't have, saves imports and edits.
+// TO CHANGE: Built-in classes live in Shared/SampleData.swift.
 @MainActor
 final class ClassStore: ObservableObject {
     @Published private(set) var classes: [PilatesClass] = []
@@ -51,6 +60,21 @@ final class ClassStore: ObservableObject {
         save()
     }
 
+    // WHAT: removes a class (and the watch copy, via auto-sync).
+    func delete(_ classValue: PilatesClass) {
+        classes.removeAll { $0.id == classValue.id }
+        save()
+    }
+
+    // WHAT: makes a copy named "... (copy)" that you can change without touching the original.
+    func duplicate(_ classValue: PilatesClass) {
+        var copy = classValue
+        copy.id = UUID().uuidString
+        copy.version = 1
+        copy.name = classValue.name + " (copy)"
+        addOrReplace(copy)
+    }
+
     func importFromClipboard(_ text: String) throws -> PilatesClass {
         guard let data = text.data(using: .utf8) else { throw ClassImportError.invalidJSON }
         let parsed = try ClassImportValidator.parseClass(from: data)
@@ -67,6 +91,7 @@ final class ClassStore: ObservableObject {
 }
 
 // MARK: - StudentStore
+// WHAT: Your students on the iPhone (saved in students.json).
 @MainActor
 final class StudentStore: ObservableObject {
     @Published private(set) var students: [Student] = []
@@ -135,6 +160,8 @@ final class StudentStore: ObservableObject {
 }
 
 // MARK: - CourseStore
+// WHAT: Your course modules and progress (saved in course.json).
+// TO CHANGE: Module names: CourseModuleSet in Shared/LogModels.swift.
 @MainActor
 final class CourseStore: ObservableObject {
     @Published private(set) var modules: [CourseModule] = []
@@ -226,6 +253,8 @@ final class CourseStore: ObservableObject {
 }
 
 // MARK: - LibraryStore
+// WHAT: Your exercise library (saved in library.json). Adds built-in moves you don't have and removes duplicate copies.
+// TO CHANGE: Built-in moves: LibraryMoveSet in Shared/LogModels.swift.
 @MainActor
 final class LibraryStore: ObservableObject {
     @Published private(set) var moves: [LibraryMove] = []
@@ -242,12 +271,12 @@ final class LibraryStore: ObservableObject {
     func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? decoder.decode([LibraryMove].self, from: data) else {
-            moves = LibraryMoveSet.levelIMat
+            moves = LibraryMoveSet.all
             save()
             return
         }
         moves = mergeBuiltIns(into: decoded)
-        if moves.count != decoded.count { save() }
+        if moves != decoded { save() }
     }
 
     func save() {
@@ -278,13 +307,23 @@ final class LibraryStore: ObservableObject {
             .sorted { lhs, rhs in lhs.name.lowercased() < rhs.name.lowercased() }
     }
 
+    /// Adds built-in moves you don't have yet (matched by name), removes duplicate
+    /// copies of built-ins, and fills in the style on older saved copies.
     private func mergeBuiltIns(into saved: [LibraryMove]) -> [LibraryMove] {
-        let builtIn = LibraryMoveSet.levelIMat
-        var result = saved
-        for built in builtIn {
-            if !result.contains(where: { $0.id == built.id }) {
-                result.append(built)
+        let builtIns = Dictionary(LibraryMoveSet.all.map { ($0.name.lowercased(), $0) }, uniquingKeysWith: { first, _ in first })
+        var seenBuiltIns = Set<String>()
+        var result: [LibraryMove] = []
+        for var move in saved {
+            let key = move.name.lowercased()
+            if let builtIn = builtIns[key] {
+                if seenBuiltIns.contains(key) { continue }
+                seenBuiltIns.insert(key)
+                if move.style == nil { move.style = builtIn.style }
             }
+            result.append(move)
+        }
+        for move in LibraryMoveSet.all where !seenBuiltIns.contains(move.name.lowercased()) {
+            result.append(move)
         }
         return result
     }

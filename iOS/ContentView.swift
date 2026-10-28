@@ -1,7 +1,16 @@
+// ======================================================================
+// ContentView.swift  (iPhone app)
+// WHAT THIS FILE DOES: Every iPhone screen: the tab bar, Classes (list, detail, builders, edit), the class timer (run screen), Hours (progress, log, weekly plan), Library, and Students.
+// TO CHANGE: Use Cmd+F to jump to a screen name below (e.g. "struct HoursView"). Each screen has a WHAT / TO CHANGE note above it.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 
+// WHAT: The iPhone tab bar (Classes, Hours, Students, Library) and the shared data every tab uses.
+// TO CHANGE: Tab names, icons or order: edit the .tabItem lines below.
 struct ContentView: View {
     @StateObject private var classStore = ClassStore()
     @StateObject private var logStore = LogStore()
@@ -39,11 +48,18 @@ struct ContentView: View {
         .onChange(of: connectivity.latestWatchLogs) { _, logs in
             logStore.mergeRemote(logs)
         }
+        // WHAT: keeps the watch up to date. Any new, edited or deleted class is sent to the watch automatically.
+        .onChange(of: classStore.classes) { _, classes in
+            connectivity.sendClasses(classes)
+        }
+        .task { connectivity.sendClasses(classStore.classes) }
     }
 }
 
 // MARK: - Class list
 
+// WHAT: Classes tab home screen: title, Paste / Import / Send to Watch buttons, and your class cards.
+// TO CHANGE: Header text: the Text("Pilates Timer") lines. Buttons: the ActionTile lines.
 struct ClassListView: View {
     @EnvironmentObject private var classStore: ClassStore
     @EnvironmentObject private var libraryStore: LibraryStore
@@ -51,8 +67,7 @@ struct ClassListView: View {
 
     @State private var statusText = ""
     @State private var showImporter = false
-    @State private var showLevelIBuilder = false
-    @State private var showCustomBuilder = false
+    @State private var builder: BuilderStart?
 
     var body: some View {
         ScrollView {
@@ -72,8 +87,8 @@ struct ClassListView: View {
                 .padding(.top, 8)
 
                 HStack(spacing: 10) {
-                    ActionTile(title: "Level I", icon: "list.bullet.clipboard") { showLevelIBuilder = true }
-                    ActionTile(title: "Custom", icon: "sparkles") { showCustomBuilder = true }
+                    ActionTile(title: "New class", icon: "plus") { builder = .blank }
+                    ActionTile(title: "Level I", icon: "list.bullet.clipboard") { builder = .levelI }
                     ActionTile(title: "Import", icon: "square.and.arrow.down") { showImporter = true }
                     ActionTile(title: "Watch", icon: "applewatch") {
                         connectivity.sendClasses(classStore.classes)
@@ -122,12 +137,8 @@ struct ClassListView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $showLevelIBuilder) {
-            LevelIMatBuilderView()
-                .environmentObject(classStore)
-        }
-        .sheet(isPresented: $showCustomBuilder) {
-            CustomClassBuilderView()
+        .sheet(item: $builder) { start in
+            ClassBuilderView(start: start)
                 .environmentObject(classStore)
                 .environmentObject(libraryStore)
         }
@@ -151,6 +162,8 @@ struct ClassListView: View {
     }
 }
 
+// WHAT: One square button on the Classes screen (icon + label).
+// TO CHANGE: Size/colors: the padding and Theme values below.
 private struct ActionTile: View {
     let title: String
     let icon: String
@@ -172,6 +185,8 @@ private struct ActionTile: View {
     }
 }
 
+// WHAT: One class card in the list: name, minutes, number of moves, props.
+// TO CHANGE: What the card shows: edit the Chip / Text lines.
 private struct ClassCard: View {
     let plan: PilatesClass
 
@@ -209,174 +224,24 @@ private struct ClassCard: View {
 
 // MARK: - Class detail
 
-struct WorkoutBuilderView: View {
-    @EnvironmentObject private var classStore: ClassStore
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var workoutName = ""
-    @State private var props: [String] = ["Mat"]
-    @State private var selectedSeries = WorkoutSeries.lunge
-    @State private var moveName = ""
-    @State private var reps = "8 each side"
-    @State private var seconds = 30
-    @State private var setup = ""
-    @State private var cue = ""
-    @State private var modification = ""
-    @State private var transition = ""
-    @State private var items: [PilatesClassItem] = []
-    @State private var statusText = ""
-
-    private var currentSuggestions: [String] {
-        let built = selectedSeries.defaultSuggestions
-        return built.filter { suggestion in
-            !items.contains(where: { $0.name.lowercased() == suggestion.lowercased() })
-        }
-    }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Workout") {
-                    TextField("Workout name", text: $workoutName)
-                    TextField("Props (comma separated)", text: Binding(
-                        get: { props.joined(separator: ", ") },
-                        set: { props = $0.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty } }
-                    ))
-                }
-
-                Section("Add movement") {
-                    Picker("Series", selection: $selectedSeries) {
-                        ForEach(WorkoutSeries.allCases) { series in
-                            Text(series.label).tag(series)
-                        }
-                    }
-                    TextField("Move name", text: $moveName)
-                    TextField("Reps", text: $reps)
-                    Stepper("Seconds: \(seconds)", value: $seconds, in: 10...90, step: 5)
-                    TextField("Setup", text: $setup)
-                    TextField("Cue", text: $cue)
-                    TextField("Modification", text: $modification)
-                    TextField("Transition", text: $transition)
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Suggested moves")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Theme.rose)
-                        ForEach(currentSuggestions.prefix(6), id: \.self) { suggestion in
-                            Button(action: { applySuggestion(suggestion) }) {
-                                Text("• \(suggestion)")
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-
-                    Button("Add move") {
-                        addSelectedMove()
-                    }
-                    .frame(maxWidth: .infinity, alignment: .center)
-                }
-
-                Section("Workout flow") {
-                    ForEach(items.indices, id: \.self) { index in
-                        let item = items[index]
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text(item.name)
-                                    .font(.headline)
-                                Spacer()
-                                Text(item.series.label)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(Theme.rose)
-                            }
-                            Text("\(item.reps) · \(TimeFormat.mmss(item.seconds))")
-                                .font(.caption)
-                                .foregroundStyle(Theme.brown)
-                            if !item.modification.isEmpty {
-                                Text("Mod: \(item.modification)")
-                                    .font(.caption)
-                                    .foregroundStyle(Theme.brown)
-                            }
-                        }
-                    }
-                }
-
-                if !statusText.isEmpty {
-                    Section {
-                        Text(statusText)
-                            .foregroundStyle(Theme.sage)
-                    }
-                }
-            }
-            .navigationTitle("Workout Builder")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        saveWorkout()
-                    }
-                    .disabled(workoutName.isEmpty || items.isEmpty)
-                }
-            }
-        }
-    }
-
-    private func applySuggestion(_ suggestion: String) {
-        moveName = suggestion
-        reps = suggestion.contains("pulse") ? "8-12 pulses" : suggestion.contains("hold") ? "20-30 sec" : suggestion.contains("push") ? "8-12" : "6-10 each side"
-        setup = selectedSeries == .abs ? "Lie on your back with the ribs down and the lower back gently anchored." : selectedSeries == .arms ? "Set up in a stable plank or kneeling position with shoulders stacked." : selectedSeries == .squat ? "Feet hip-width and chest tall with knees tracking over toes." : "Stand tall with a split stance and the torso lifted."
-        cue = selectedSeries == .abs ? "Keep the movement slow and control the breath." : "Move with control and keep the shape long through the torso."
-        modification = selectedSeries.defaultModification
-    }
-
-    private func addSelectedMove() {
-        let finalName = moveName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !finalName.isEmpty else {
-            statusText = "Add a move name before saving."
-            return
-        }
-
-        let item = PilatesClassItem(
-            section: selectedSeries.label,
-            name: finalName,
-            reps: reps.isEmpty ? "8 each side" : reps,
-            seconds: max(seconds, 10),
-            setup: setup,
-            cue: cue,
-            buildingBlock: "",
-            modification: modification.isEmpty ? selectedSeries.defaultModification : modification,
-            transition: transition,
-            props: selectedSeries == .abs ? ["Mat"] : ["Mat"],
-            series: selectedSeries
-        )
-        items.append(item)
-        statusText = "Added \(finalName) to \(selectedSeries.label)."
-        moveName = ""
-        reps = "8 each side"
-        seconds = 30
-        setup = ""
-        cue = ""
-        modification = ""
-        transition = ""
-    }
-
-    private func saveWorkout() {
-        let trimmedName = workoutName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedName.isEmpty, !items.isEmpty else { statusText = "Name the workout and add at least one move."; return }
-        let workout = PilatesClass(name: trimmedName, props: props.isEmpty ? ["Mat"] : props, items: items)
-        classStore.addOrReplace(workout)
-        statusText = "Saved \(trimmedName)."
-        dismiss()
-    }
-}
-
+// WHAT: One class: name, minutes, props, the Start class button, and every move card in teaching order.
+// TO CHANGE: Button text: "Start class". Note under it: the Text below the button.
 struct ClassDetailView: View {
     @EnvironmentObject private var classStore: ClassStore
-    
-    let plan: PilatesClass
-    @State private var showEditForm = false
+    @EnvironmentObject private var libraryStore: LibraryStore
+    @Environment(\.dismiss) private var dismiss
+
+    /// The class as it was when you opened it. `plan` below always reads the latest saved version.
+    let opened: PilatesClass
+    @State private var builder: BuilderStart?
+    @State private var confirmDelete = false
+
+    init(plan: PilatesClass) { opened = plan }
+
+    // WHAT: the latest saved copy of this class, so edits show up right away.
+    private var plan: PilatesClass {
+        classStore.classes.first { $0.id == opened.id } ?? opened
+    }
 
     var body: some View {
         ScrollView {
@@ -406,7 +271,7 @@ struct ClassDetailView: View {
                             .foregroundStyle(.white)
                     }
                     
-                    Button(action: { showEditForm = true }) {
+                    Button(action: { builder = .edit(plan) }) {
                         Image(systemName: "pencil.circle.fill")
                             .foregroundStyle(Theme.rose)
                             .font(.system(size: 24))
@@ -465,120 +330,35 @@ struct ClassDetailView: View {
         }
         .background(Theme.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showEditForm) {
-            ClassEditFormView(classStore: classStore, editingClass: plan)
+        .sheet(item: $builder) { start in
+            ClassBuilderView(start: start)
+                .environmentObject(classStore)
+                .environmentObject(libraryStore)
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button { builder = .edit(plan) } label: { Label("Edit class", systemImage: "pencil") }
+                    Button { classStore.duplicate(plan) } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
+                    Button(role: .destructive) { confirmDelete = true } label: { Label("Delete class", systemImage: "trash") }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .confirmationDialog("Delete \(plan.name)?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete class", role: .destructive) {
+                classStore.delete(plan)
+                dismiss()
+            }
+        } message: {
+            Text("It will also be removed from your watch. Built-in classes come back the next time the app opens.")
         }
     }
 }
 
-// MARK: - Class Edit Form
-private struct ClassEditFormView: View {
-    @Environment(\.dismiss) var dismiss
-    let classStore: ClassStore
-    let editingClass: PilatesClass
-    
-    @State private var name = ""
-    @State private var selectedProps: Set<String> = []
-    @State private var items: [PilatesClassItem] = []
-    
-    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball", "Mat"]
-    
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Class Name") {
-                    TextField("Name", text: $name)
-                }
-                
-                Section("Props") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        ForEach(commonProps, id: \.self) { prop in
-                            HStack {
-                                Text(prop)
-                                Spacer()
-                                if selectedProps.contains(prop) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(Theme.rose)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if selectedProps.contains(prop) {
-                                    selectedProps.remove(prop)
-                                } else {
-                                    selectedProps.insert(prop)
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                Section("Exercises") {
-                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(item.name)
-                                        .font(.subheadline.weight(.semibold))
-                                    if !item.reps.isEmpty {
-                                        Text(item.reps)
-                                            .font(.caption2)
-                                            .foregroundStyle(Theme.brown.opacity(0.6))
-                                    }
-                                }
-                                Spacer()
-                                Button(action: { items.remove(at: index) }) {
-                                    Image(systemName: "trash.fill")
-                                        .font(.caption)
-                                        .foregroundStyle(Color.red)
-                                }
-                            }
-                        }
-                        .padding(8)
-                        .background(Theme.cream)
-                        .cornerRadius(6)
-                    }
-                }
-                
-                Section {
-                    Button(action: saveClass) {
-                        Text("Save Changes")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(12)
-                            .background(Theme.rose)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .navigationTitle("Edit Class")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundStyle(Theme.rose)
-                }
-            }
-            .preferredColorScheme(.light)
-            .onAppear {
-                name = editingClass.name
-                selectedProps = Set(editingClass.props)
-                items = editingClass.items
-            }
-        }
-    }
-    
-    private func saveClass() {
-        var updated = editingClass
-        updated.name = name
-        updated.props = Array(selectedProps).sorted()
-        updated.items = items
-        classStore.addOrReplace(updated)
-        dismiss()
-    }
-}
-
+// WHAT: One move on the class screen: name, time, reps, cue, Building Block, Modification, Transition, props.
+// TO CHANGE: Label names/colors: the LabeledNote lines.
 private struct MoveCard: View {
     let item: PilatesClassItem
 
@@ -597,11 +377,6 @@ private struct MoveCard: View {
                 Text(TimeFormat.mmss(item.seconds))
                     .font(.subheadline.monospacedDigit().weight(.semibold))
                     .foregroundStyle(Theme.rose)
-            }
-            if !item.reps.isEmpty {
-                Text(item.reps)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(Theme.brown)
             }
             if !item.setup.isEmpty {
                 LabeledNote(title: "Setup", text: item.setup, icon: "figure.movement", color: Theme.berry)
@@ -632,6 +407,8 @@ private struct MoveCard: View {
 
 // MARK: - Run
 
+// WHAT: The iPhone class timer: big ring for the current move, whole-class progress, next move, controls, 10-minutes-left banner, and the "Log this class?" prompt at the end.
+// TO CHANGE: Ring size: .frame(width: 240...). Banner text: "10 minutes left". Log choices: the Button lines in .alert.
 struct PhoneRunView: View {
     @EnvironmentObject private var logStore: LogStore
     @EnvironmentObject private var connectivity: PhoneConnectivityManager
@@ -665,9 +442,6 @@ struct PhoneRunView: View {
                             .font(Theme.display(30))
                             .foregroundStyle(Theme.berry)
                             .multilineTextAlignment(.center)
-                        if !item.reps.isEmpty {
-                            Text(item.reps).font(.headline).foregroundStyle(Theme.brown)
-                        }
                     }
 
                     ZStack {
@@ -739,6 +513,7 @@ struct PhoneRunView: View {
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
             controller.start()
+            // WHAT: starting a class on the iPhone also starts it on the Apple Watch.
             connectivity.startClassOnWatch(controller.plan)
         }
         .onDisappear {
@@ -766,6 +541,8 @@ struct PhoneRunView: View {
         }
     }
 
+    // WHAT: vibrates the phone and shows the "10 minutes left" banner for 6 seconds.
+    // TO CHANGE: the banner text is in .overlay above; the timing is ClassAlerts in Shared/LogModels.swift.
     private func announceTenMinutes() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
         withAnimation(.spring) { showTenMinutes = true }
@@ -786,6 +563,8 @@ struct PhoneRunView: View {
     }
 }
 
+// WHAT: The round back / play-pause / next buttons on the timer.
+// TO CHANGE: Sizes are set where it is used (size: 58 / 78).
 private struct RoundControl: View {
     let icon: String
     let size: CGFloat
@@ -816,6 +595,8 @@ private struct RoundControl: View {
 /// - "Log a session" form with date, type, hours, place, student selection, notes
 /// - Session list grouped by week, filterable by type
 /// - CSV export, weekly plan, edit/delete individual entries
+// WHAT: Hours tab: progress toward 20 / 10 / 20 hours, the session log, and the weekly plan.
+// TO CHANGE: Goals and deadline: practiceGoal ... deadline just below.
 struct HoursView: View {
     @EnvironmentObject private var logStore: LogStore
     @StateObject private var studentStore = StudentStore()
@@ -832,6 +613,7 @@ struct HoursView: View {
     
     // MARK: - Goal Tracking
     /// Hard-coded goals and deadline (Nov 13, 2026)
+    // TO CHANGE: your hour goals and deadline. Also update WatchHoursGlanceView in watchOS/WatchContentView.swift.
     private let practiceGoal: Double = 20.0
     private let observationGoal: Double = 10.0
     private let teachingGoal: Double = 20.0
@@ -1099,6 +881,8 @@ struct HoursView: View {
 }
 
 // MARK: - Progress Card
+// WHAT: One progress card on the Hours tab.
+// TO CHANGE: Look of the card: padding/colors below.
 private struct ProgressCard: View {
     let type: LogType
     let hours: Double
@@ -1164,6 +948,8 @@ private struct ProgressCard: View {
 }
 
 // MARK: - Session Log Cell
+// WHAT: One logged session in the Hours list.
+// TO CHANGE: What it shows: the Text lines below.
 private struct SessionLogCell: View {
     let entry: ClassLogEntry
     let studentStore: StudentStore
@@ -1247,6 +1033,8 @@ private struct SessionLogCell: View {
 }
 
 // MARK: - Weekly Plan View
+// WHAT: Weekly plan page: weekly targets and your plan notes.
+// TO CHANGE: Default plan text: the planNotes value.
 private struct WeeklyPlanView: View {
     let weeklyPracticeTarget: Double
     let weeklyObservationTarget: Double
@@ -1358,6 +1146,8 @@ private struct WeeklyPlanView: View {
 }
 
 // MARK: - Log Session Form
+// WHAT: Form to log or edit a session: date, type, hours, class, place, students, note.
+// TO CHANGE: Default hours: hours = 0.5.
 private struct LogSessionForm: View {
     @Environment(\.dismiss) var dismiss
     let logStore: LogStore
@@ -1476,519 +1266,562 @@ private struct LogSessionForm: View {
     }
 }
 
-// MARK: - Level I Mat Builder
+// MARK: - Class Builder (build and edit classes on the iPhone)
 
-/// Builder for Level I Classical Pilates Mat class
-/// Allows selecting which exercises to include; order is fixed
-struct LevelIMatBuilderView: View {
-    @Environment(\.dismiss) var dismiss
-    @EnvironmentObject private var classStore: ClassStore
-    
-    @State private var name = ""
-    @State private var selectedProps: Set<String> = []
-    @State private var selectedExercises: Set<String> = Set(LevelIMatTemplate.exercises.map { $0.name })
-    @State private var showEndingPicker = false
-    
-    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball"]
-    private let endings = ["Rest", "Seal (3x)", "Push Ups (3x)", "Breathing"]
-    
-    private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && !selectedExercises.isEmpty
-    }
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                Form {
-                    Section("Class Name") {
-                        TextField("e.g., Monday Morning Class", text: $name)
-                    }
-                    
-                    Section("Props") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(commonProps, id: \.self) { prop in
-                                HStack {
-                                    Text(prop)
-                                    Spacer()
-                                    if selectedProps.contains(prop) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Theme.rose)
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if selectedProps.contains(prop) {
-                                        selectedProps.remove(prop)
-                                    } else {
-                                        selectedProps.insert(prop)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    Section("Exercises to Include") {
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(LevelIMatTemplate.exercises, id: \.name) { exercise in
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(exercise.name)
-                                            .font(.subheadline.weight(.semibold))
-                                        HStack(spacing: 8) {
-                                            if !exercise.reps.isEmpty {
-                                                Text(exercise.reps)
-                                                    .font(.caption2)
-                                                    .foregroundStyle(Theme.brown.opacity(0.6))
-                                            }
-                                            if exercise.seconds > 0 {
-                                                Text("\(exercise.seconds)s")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(Theme.brown.opacity(0.6))
-                                            }
-                                        }
-                                    }
-                                    Spacer()
-                                    if selectedExercises.contains(exercise.name) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Theme.rose)
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if selectedExercises.contains(exercise.name) {
-                                        selectedExercises.remove(exercise.name)
-                                    } else {
-                                        selectedExercises.insert(exercise.name)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    
-                    Section {
-                        Button(action: saveClass) {
-                            Text("Create Class")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(12)
-                                .background(isValid ? Theme.rose : Theme.petal)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!isValid)
-                    }
-                }
-            }
-            .navigationTitle("Level I Mat")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundStyle(Theme.rose)
-                }
-            }
-            .preferredColorScheme(.light)
+// WHAT: How a builder starts: a blank class, the Level I mat template, or an existing class to edit.
+enum BuilderStart: Identifiable {
+    case blank
+    case levelI
+    case edit(PilatesClass)
+
+    var id: String {
+        switch self {
+        case .blank: "blank"
+        case .levelI: "levelI"
+        case .edit(let plan): "edit-\(plan.id)"
         }
-    }
-    
-    private func saveClass() {
-        // Filter Level I template to selected exercises
-        let items = LevelIMatTemplate.exercises.filter { selectedExercises.contains($0.name) }
-        let newClass = PilatesClass(
-            name: name,
-            props: Array(selectedProps).sorted(),
-            items: items
-        )
-        classStore.addOrReplace(newClass)
-        dismiss()
     }
 }
 
-// MARK: - Custom Class Builder
+// WHAT: One move while you're building. The id lets the list drag, delete and edit the right row.
+struct DraftMove: Identifiable, Equatable {
+    let id = UUID()
+    var item: PilatesClassItem
+}
 
-/// Builder for custom Pilates classes
-/// Add moves from Library, reorder by drag, set reps/seconds
-struct CustomClassBuilderView: View {
-    @Environment(\.dismiss) var dismiss
+// WHAT: The one class builder: name the class, add moves (from the Library or your own), set each move's time/reps/cues,
+//       drag to reorder, swipe to delete, then Save. Saving also sends the class to your Apple Watch.
+// TO CHANGE: Default time for a new move: defaultSeconds. Button text: the Label lines in "Add moves".
+struct ClassBuilderView: View {
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var classStore: ClassStore
     @EnvironmentObject private var libraryStore: LibraryStore
-    
+
+    let start: BuilderStart
+
     @State private var name = ""
-    @State private var selectedProps: Set<String> = []
-    @State private var items: [PilatesClassItem] = []
-    @State private var showMoveSelector = false
-    @State private var showAddSection = false
-    @State private var newSectionName = ""
-    
-    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball"]
-    
-    private var isValid: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && !items.isEmpty
+    @State private var extraProps = "Mat"
+    @State private var sectionForNewMoves = ""
+    @State private var moves: [DraftMove] = []
+    @State private var editingMove: DraftMove?
+    @State private var showLibraryPicker = false
+    @State private var editMode: EditMode = .inactive
+    @State private var loaded = false
+
+    // TO CHANGE: starting time for each new move (seconds) and the starting class length (minutes).
+    @State private var defaultSeconds = 60
+    @State private var targetMinutes = 45
+
+    private var editingClass: PilatesClass? {
+        if case .edit(let plan) = start { return plan }
+        return nil
     }
-    
-    // Filter moves that use ANY of the selected props
-    private var suggestedMoves: [LibraryMove] {
-        if selectedProps.isEmpty {
-            return libraryStore.moves
-        }
-        return libraryStore.moves.filter { move in
-            // Show moves that have at least one prop matching selectedProps
-            move.props.contains { prop in selectedProps.contains(prop) }
-        }
+
+    private var totalSeconds: Int { moves.reduce(0) { $0 + $1.item.seconds } }
+    private var targetSeconds: Int { targetMinutes * 60 }
+    /// e.g. "13:00 left to fill" or "2:30 over".
+    private var fitText: String {
+        let gap = targetSeconds - totalSeconds
+        if gap == 0 { return "Exactly \(targetMinutes) min" }
+        return gap > 0 ? "\(TimeFormat.mmss(gap)) left to fill" : "\(TimeFormat.mmss(-gap)) over"
     }
-    
-    // Moves with ANY selected props, grouped by series
-    private var suggestedMovesByAreas: [ExerciseArea: [LibraryMove]] {
-        Dictionary(grouping: suggestedMoves, by: { $0.area })
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !moves.isEmpty
     }
-    
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Form {
-                    Section("Class Name") {
-                        TextField("e.g., Full-Body Flow", text: $name)
-                    }
-                    
-                    Section("Props") {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(commonProps, id: \.self) { prop in
-                                HStack {
-                                    Text(prop)
-                                    Spacer()
-                                    if selectedProps.contains(prop) {
-                                        Image(systemName: "checkmark.circle.fill")
-                                            .foregroundStyle(Theme.rose)
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if selectedProps.contains(prop) {
-                                        selectedProps.remove(prop)
-                                    } else {
-                                        selectedProps.insert(prop)
-                                    }
-                                }
-                            }
+            List {
+                // --- Class name and props
+                Section("Class") {
+                    TextField("Class name (e.g. Tuesday Core Flow)", text: $name)
+                        .font(.headline)
+                    TextField("Props to bring (comma separated)", text: $extraProps)
+                }
+
+                // --- Time: how long the class is and how the moves fill it
+                Section {
+                    Stepper(value: $targetMinutes, in: 5...120, step: 5) {
+                        HStack {
+                            Text("Class length")
+                            Spacer()
+                            Text("\(targetMinutes) min").foregroundStyle(Theme.rose).monospacedDigit()
                         }
                     }
-                    
-                    // Suggested moves based on selected props
-                    if !selectedProps.isEmpty && !suggestedMoves.isEmpty {
-                        Section("Suggested Moves") {
-                            VStack(alignment: .leading, spacing: 12) {
-                                ForEach(Array(suggestedMovesByAreas.keys.sorted { $0.rawValue < $1.rawValue }), id: \.self) { area in
-                                    if let moves = suggestedMovesByAreas[area], !moves.isEmpty {
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            Text(area.rawValue.capitalized)
-                                                .font(.caption.weight(.semibold))
-                                                .foregroundStyle(Theme.berry)
-                                            
-                                            VStack(spacing: 6) {
-                                                ForEach(moves.prefix(3), id: \.id) { move in
-                                                    HStack {
-                                                        VStack(alignment: .leading, spacing: 2) {
-                                                            Text(move.name)
-                                                                .font(.caption.weight(.semibold))
-                                                                .foregroundStyle(Theme.brown)
-                                                            if !move.props.isEmpty {
-                                                                Text(move.props.joined(separator: ", "))
-                                                                    .font(.caption2)
-                                                                    .foregroundStyle(Theme.petal)
-                                                            }
-                                                        }
-                                                        Spacer()
-                                                        Button(action: {
-                                                            let item = PilatesClassItem(
-                                                                name: move.name,
-                                                                reps: move.reps,
-                                                                seconds: move.seconds,
-                                                                cue: move.cue,
-                                                                buildingBlock: move.buildingBlock,
-                                                                modification: move.modification,
-                                                                props: move.props
-                                                            )
-                                                            items.append(item)
-                                                        }) {
-                                                            Image(systemName: "plus.circle.fill")
-                                                                .foregroundStyle(Theme.sage)
-                                                        }
-                                                    }
-                                                    .padding(6)
-                                                    .background(Theme.cream)
-                                                    .cornerRadius(4)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("\(TimeFormat.mmss(totalSeconds)) planned")
+                                .font(.headline.monospacedDigit())
+                                .foregroundStyle(Theme.berry)
+                            Spacer()
+                            Text(fitText)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(totalSeconds > targetSeconds ? Theme.clay : Theme.sage)
                         }
+                        ProgressView(value: Double(min(totalSeconds, targetSeconds)), total: Double(max(targetSeconds, 1)))
+                            .tint(totalSeconds > targetSeconds ? Theme.clay : Theme.rose)
                     }
-                    
-                    Section("Class Items") {
-                        if items.isEmpty {
-                            Text("Add moves to build your class")
-                                .font(.subheadline)
-                                .foregroundStyle(Theme.brown.opacity(0.6))
-                        } else {
-                            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(item.name)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(Theme.berry)
-                                    HStack(spacing: 12) {
-                                        if !item.reps.isEmpty {
-                                            Text(item.reps)
-                                                .font(.caption2)
-                                                .foregroundStyle(Theme.brown.opacity(0.6))
-                                        }
-                                        if item.seconds > 0 {
-                                            Text("\(item.seconds)s")
-                                                .font(.caption2)
-                                                .foregroundStyle(Theme.brown.opacity(0.6))
-                                        }
-                                        Spacer()
-                                        Button(action: { items.remove(at: index) }) {
-                                            Image(systemName: "trash.fill")
-                                                .font(.caption)
-                                                .foregroundStyle(Color.red)
-                                        }
-                                    }
-                                }
-                                .padding(8)
-                                .background(Theme.cream)
-                                .cornerRadius(6)
-                            }
+                    if !moves.isEmpty {
+                        Button {
+                            spreadEvenly()
+                        } label: {
+                            Label("Spread \(targetMinutes) min evenly across \(moves.count) moves", systemImage: "equal.circle")
                         }
-                        
-                        HStack(spacing: 12) {
-                            Button(action: { showMoveSelector = true }) {
-                                Label("Add Move", systemImage: "plus.circle")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Theme.rose)
-                            }
-                            
-                            Button(action: { showAddSection = true }) {
-                                Label("Add Section", systemImage: "text.aligncenter")
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(Theme.sage)
-                            }
-                        }
-                        .padding(.top, 8)
+                        .foregroundStyle(Theme.rose)
                     }
-                    
-                    Section {
-                        Button(action: saveClass) {
-                            Text("Create Class")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(12)
-                                .background(isValid ? Theme.rose : Theme.petal)
+                } header: {
+                    Text("Time")
+                } footer: {
+                    Text("Every move runs on time. Change one move's time by tapping it.")
+                }
+
+                // --- The moves, in teaching order (top runs first)
+                Section {
+                    if moves.isEmpty {
+                        Text("No moves yet. Add some below.")
+                            .foregroundStyle(Theme.brown.opacity(0.6))
+                    }
+                    ForEach(Array(moves.enumerated()), id: \.element.id) { index, move in
+                        Button {
+                            editingMove = move
+                        } label: {
+                            BuilderMoveRow(
+                                number: index + 1,
+                                item: move.item,
+                                showSection: !move.item.section.isEmpty &&
+                                    (index == 0 || moves[index - 1].item.section != move.item.section)
+                            )
                         }
                         .buttonStyle(.plain)
-                        .disabled(!isValid)
+                    }
+                    .onMove { from, to in moves.move(fromOffsets: from, toOffset: to) }
+                    .onDelete { moves.remove(atOffsets: $0) }
+                } header: {
+                    HStack {
+                        Text("Moves in teaching order")
+                        Spacer()
+                        if !moves.isEmpty {
+                            Button(editMode == .active ? "Done" : "Reorder") {
+                                withAnimation { editMode = editMode == .active ? .inactive : .active }
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                            .textCase(nil)
+                        }
+                    }
+                } footer: {
+                    Text("Tap a move to change its time or cues. Swipe left to delete. Tap Reorder to drag moves.")
+                }
+
+                // --- Adding moves (each button is in its own row so one tap = one action)
+                Section("Add moves") {
+                    TextField("Section for new moves (e.g. Warm-Up)", text: $sectionForNewMoves)
+                    Stepper(value: $defaultSeconds, in: 15...600, step: 15) {
+                        HStack {
+                            Text("Time for each new move").foregroundStyle(Theme.brown)
+                            Spacer()
+                            Text(TimeFormat.mmss(defaultSeconds)).monospacedDigit()
+                        }
+                    }
+                    if !moves.isEmpty {
+                        Button("Set every move to \(TimeFormat.mmss(defaultSeconds))") {
+                            for i in moves.indices { moves[i].item.seconds = defaultSeconds }
+                        }
+                    }
+                    Button {
+                        showLibraryPicker = true
+                    } label: {
+                        Label("Add from Library", systemImage: "books.vertical")
+                    }
+                    Button {
+                        let move = DraftMove(item: PilatesClassItem(
+                            section: sectionForNewMoves.trimmingCharacters(in: .whitespaces),
+                            name: "",
+                            seconds: defaultSeconds,
+                            modification: " "
+                        ))
+                        moves.append(move)
+                        editingMove = move
+                    } label: {
+                        Label("Write my own move", systemImage: "square.and.pencil")
+                    }
+                }
+                .foregroundStyle(Theme.rose)
+
+                // --- Save
+                Section {
+                    Button(action: save) {
+                        Text(editingClass == nil ? "Save class & send to watch" : "Save changes & send to watch")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(canSave ? Theme.rose : Theme.petal, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSave)
+                    .listRowBackground(Color.clear)
+                } footer: {
+                    if !canSave {
+                        Text("Give the class a name and at least one move to save.")
                     }
                 }
             }
-            .navigationTitle("Custom Class")
+            .environment(\.editMode, $editMode)
+            .scrollContentBackground(.hidden)
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle(editingClass == nil ? "New class" : "Edit class")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(Theme.rose)
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save).disabled(!canSave)
                 }
             }
-            .preferredColorScheme(.light)
-            .sheet(isPresented: $showMoveSelector) {
-                MoveSelectorView(suggestedMoves: suggestedMoves, selectedItems: $items)
-            }
-            .sheet(isPresented: $showAddSection) {
-                AddSectionView(section: $newSectionName, items: $items) {
-                    showAddSection = false
+            // When the move editor closes, drop any "write my own" move that never got a name.
+            .sheet(item: $editingMove, onDismiss: {
+                moves.removeAll { $0.item.name.trimmingCharacters(in: .whitespaces).isEmpty }
+            }) { move in
+                MoveEditorView(move: move) { updated in
+                    if let i = moves.firstIndex(where: { $0.id == updated.id }) { moves[i] = updated }
+                } onDelete: {
+                    moves.removeAll { $0.id == move.id }
                 }
+            }
+            .sheet(isPresented: $showLibraryPicker) {
+                LibraryPickerView(moves: libraryStore.moves) { picked in
+                    let section = sectionForNewMoves.trimmingCharacters(in: .whitespaces)
+                    moves += picked.map { libraryMove in
+                        DraftMove(item: PilatesClassItem(
+                            section: section,
+                            name: libraryMove.name,
+                            seconds: defaultSeconds,
+                            cue: libraryMove.cue,
+                            buildingBlock: libraryMove.buildingBlock,
+                            modification: libraryMove.modification.isEmpty ? " " : libraryMove.modification,
+                            props: libraryMove.props
+                        ))
+                    }
+                }
+            }
+            .onAppear(perform: loadStart)
+        }
+        .preferredColorScheme(.light)
+    }
+
+    // WHAT: fills the builder from the starting point (blank, Level I template, or the class being edited).
+    private func loadStart() {
+        guard !loaded else { return }
+        loaded = true
+        switch start {
+        case .blank:
+            break
+        case .levelI:
+            name = "Level I Mat"
+            moves = LevelIMatTemplate.exercises.map { DraftMove(item: $0) }
+        case .edit(let plan):
+            name = plan.name
+            targetMinutes = max(5, Int((Double(plan.totalSeconds) / 60 / 5).rounded()) * 5)
+            extraProps = plan.props.joined(separator: ", ")
+            // Older classes saved a section heading as a blank "Untitled Exercise" move.
+            // Turn those back into section names for the moves after them, so they don't play as moves.
+            var carriedSection = ""
+            moves = plan.items.compactMap { item in
+                let blank = item.name.trimmingCharacters(in: .whitespaces).isEmpty || item.name == "Untitled Exercise"
+                if blank && item.reps.isEmpty && item.cue.isEmpty && item.buildingBlock.isEmpty {
+                    carriedSection = item.section
+                    return nil
+                }
+                var fixed = item
+                if fixed.section.isEmpty && !carriedSection.isEmpty { fixed.section = carriedSection }
+                return DraftMove(item: fixed)
             }
         }
     }
-    
-    private func saveClass() {
-        let newClass = PilatesClass(
-            name: name,
-            props: Array(selectedProps).sorted(),
+
+    // WHAT: gives every move the same time so the class adds up to the class length (rounded to 5 seconds).
+    private func spreadEvenly() {
+        guard !moves.isEmpty else { return }
+        let each = max(15, Int((Double(targetSeconds) / Double(moves.count) / 5).rounded()) * 5)
+        for i in moves.indices { moves[i].item.seconds = each }
+    }
+
+    // WHAT: saves the class (keeping the same class when editing) and closes the builder.
+    //       The class list notices the change and sends everything to the watch.
+    private func save() {
+        guard canSave else { return }
+        let items = moves.map { draft -> PilatesClassItem in
+            var item = draft.item
+            item.name = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if item.name.isEmpty { item.name = "Untitled move" }
+            item.modification = item.modification.trimmingCharacters(in: .whitespacesAndNewlines)
+            return item
+        }
+        // Props = what you typed + every prop the moves use (no duplicates).
+        var props: [String] = []
+        let typed = extraProps.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        for prop in typed + items.flatMap(\.props) where !prop.isEmpty {
+            if !props.contains(where: { $0.lowercased() == prop.lowercased() }) { props.append(prop) }
+        }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let plan = PilatesClass(
+            version: (editingClass?.version ?? 0) + 1,
+            id: editingClass?.id ?? UUID().uuidString,
+            name: trimmedName,
+            props: props,
             items: items
         )
-        classStore.addOrReplace(newClass)
+        classStore.addOrReplace(plan)
         dismiss()
     }
 }
 
-// MARK: - Move Selector
+// WHAT: One row in the builder: number, move name, time, reps, and a section label when a new section starts.
+private struct BuilderMoveRow: View {
+    let number: Int
+    let item: PilatesClassItem
+    let showSection: Bool
 
-private struct MoveSelectorView: View {
-    let suggestedMoves: [LibraryMove]
-    @Binding var selectedItems: [PilatesClassItem]
-    @Environment(\.dismiss) var dismiss
-    
-    @State private var searchText = ""
-    @State private var selectedArea = ExerciseArea.warmup
-    @State private var filterByArea = false
-    
-    private var filteredMoves: [LibraryMove] {
-        var result = suggestedMoves
-        if !searchText.isEmpty {
-            result = result.filter { $0.name.lowercased().contains(searchText.lowercased()) }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if showSection {
+                Text(item.section.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.gold)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(number)")
+                    .font(.caption.weight(.bold).monospacedDigit())
+                    .foregroundStyle(Theme.rose)
+                    .frame(width: 22, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name.isEmpty ? "New move" : item.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    if !item.cue.isEmpty {
+                        Text(item.cue)
+                            .font(.caption)
+                            .foregroundStyle(Theme.brown.opacity(0.7))
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Text(TimeFormat.mmss(item.seconds))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(Theme.rose)
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Theme.petal)
+            }
         }
-        if filterByArea {
-            result = result.filter { $0.area == selectedArea }
-        }
-        return result.sorted { $0.name.lowercased() < $1.name.lowercased() }
+        .contentShape(Rectangle())
     }
-    
+}
+
+// WHAT: Edit one move: section, name, time, reps, setup, cue, Building Block, Modification, transition, props.
+// TO CHANGE: time steps: the Stepper "step:" value (15 seconds). Longest move: the "in:" range (up to 30 min).
+private struct MoveEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var move: DraftMove
+    let onSave: (DraftMove) -> Void
+    let onDelete: () -> Void
+
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(Theme.petal)
-                    TextField("Search moves", text: $searchText)
-                        .textFieldStyle(.plain)
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(Theme.petal)
+            Form {
+                Section("Move") {
+                    TextField("Move name", text: $move.item.name)
+                        .font(.headline)
+                    TextField("Section (e.g. Warm-Up, Mat flow)", text: $move.item.section)
+                    Stepper(value: $move.item.seconds, in: 0...1800, step: 15) {
+                        HStack {
+                            Text("Time")
+                            Spacer()
+                            Text(TimeFormat.mmss(move.item.seconds))
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.rose)
+                        }
+                    }
+                    // TO CHANGE: the quick time buttons (in seconds).
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach([30, 45, 60, 90, 120, 180, 300], id: \.self) { secs in
+                                Button(TimeFormat.mmss(secs)) { move.item.seconds = secs }
+                                    .font(.caption.weight(.semibold).monospacedDigit())
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(move.item.seconds == secs ? Theme.rose : Theme.blush, in: Capsule())
+                                    .foregroundStyle(move.item.seconds == secs ? .white : Theme.berry)
+                                    .buttonStyle(.plain)
+                            }
                         }
                     }
                 }
-                .padding(12)
-                .background(Color.white)
-                .cornerRadius(10)
-                .padding(16)
-                
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(filteredMoves, id: \.id) { move in
-                            Button(action: { addMove(move) }) {
-                                VStack(alignment: .leading, spacing: 4) {
+                Section("Coaching notes (shown on the watch)") {
+                    TextField("Setup", text: $move.item.setup, axis: .vertical)
+                    TextField("Cue", text: $move.item.cue, axis: .vertical)
+                    TextField("Building Block", text: $move.item.buildingBlock, axis: .vertical)
+                    TextField("Modification", text: $move.item.modification, axis: .vertical)
+                    TextField("Transition to next move", text: $move.item.transition, axis: .vertical)
+                }
+                Section("Props for this move") {
+                    TextField("Comma separated (e.g. Pilates ball)", text: Binding(
+                        get: { move.item.props.joined(separator: ", ") },
+                        set: { move.item.props = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } }
+                    ))
+                }
+                Section {
+                    Button("Delete this move", role: .destructive) {
+                        onDelete()
+                        dismiss()
+                    }
+                }
+            }
+            .navigationTitle(move.item.name.isEmpty ? "New move" : move.item.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        move.item.props = move.item.props.filter { !$0.isEmpty }
+                        onSave(move)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .preferredColorScheme(.light)
+    }
+}
+
+// WHAT: Pick several Library moves at once. Filter by search, style, area and prop. Moves are added in the order you tap them.
+// TO CHANGE: filters: the three Menu pickers. Library moves themselves: Library tab, or moreStyles in Shared/LogModels.swift.
+private struct LibraryPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    let moves: [LibraryMove]
+    let onAdd: ([LibraryMove]) -> Void
+
+    @State private var search = ""
+    @State private var style: MoveStyle?
+    @State private var area: ExerciseArea?
+    @State private var prop: String?
+    @State private var picked: [UUID] = []
+
+    private var allProps: [String] {
+        var seen: [String] = []
+        for p in moves.flatMap(\.props) where !seen.contains(where: { $0.lowercased() == p.lowercased() }) {
+            seen.append(p)
+        }
+        return seen.sorted { $0.lowercased() < $1.lowercased() }
+    }
+
+    private var filtered: [LibraryMove] {
+        moves.filter { move in
+            (search.isEmpty || move.name.localizedCaseInsensitiveContains(search)) &&
+            (style == nil || move.style == style) &&
+            (area == nil || move.area == area) &&
+            (prop == nil || move.props.contains { $0.lowercased() == prop!.lowercased() })
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Menu {
+                                Button("All styles") { style = nil }
+                                ForEach(MoveStyle.allCases, id: \.self) { s in Button(s.label) { style = s } }
+                            } label: { filterLabel(style?.label ?? "Style", active: style != nil) }
+                            Menu {
+                                Button("All areas") { area = nil }
+                                ForEach(ExerciseArea.allCases, id: \.self) { a in Button(a.label) { area = a } }
+                            } label: { filterLabel(area?.label ?? "Area", active: area != nil) }
+                            Menu {
+                                Button("Any props") { prop = nil }
+                                ForEach(allProps, id: \.self) { p in Button(p) { prop = p } }
+                            } label: { filterLabel(prop ?? "Props", active: prop != nil) }
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("\(filtered.count) moves") {
+                    if filtered.isEmpty {
+                        Text("No moves match. Try clearing a filter.")
+                            .foregroundStyle(Theme.brown.opacity(0.6))
+                    }
+                    ForEach(filtered) { move in
+                        Button {
+                            if let i = picked.firstIndex(of: move.id) { picked.remove(at: i) } else { picked.append(move.id) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text(move.name)
                                         .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(Theme.berry)
-                                    HStack(spacing: 8) {
-                                        Chip(text: move.area.label, tint: Theme.gold)
-                                        if !move.reps.isEmpty {
-                                            Text(move.reps)
-                                                .font(.caption2)
-                                                .foregroundStyle(Theme.brown.opacity(0.6))
-                                        }
-                                    }
+                                    Text([move.style?.label ?? "My move", move.area.label, move.props.joined(separator: ", ")]
+                                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.brown.opacity(0.7))
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(12)
-                                .background(Color.white)
-                                .cornerRadius(8)
+                                Spacer()
+                                if let n = picked.firstIndex(of: move.id) {
+                                    Text("\(n + 1)")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 24, height: 24)
+                                        .background(Theme.rose, in: Circle())
+                                } else {
+                                    Image(systemName: "circle")
+                                        .foregroundStyle(Theme.petal)
+                                }
                             }
-                            .buttonStyle(.plain)
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
-                    .padding(16)
                 }
             }
+            .searchable(text: $search, prompt: "Search moves")
+            .scrollContentBackground(.hidden)
             .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("Add Move")
+            .navigationTitle("Add from Library")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Done") { dismiss() }
-                        .foregroundStyle(Theme.rose)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(picked.isEmpty ? "Add" : "Add \(picked.count)") {
+                        let byId = Dictionary(moves.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                        onAdd(picked.compactMap { byId[$0] })
+                        dismiss()
+                    }
+                    .disabled(picked.isEmpty)
                 }
             }
-            .preferredColorScheme(.light)
         }
+        .preferredColorScheme(.light)
     }
-    
-    private func addMove(_ move: LibraryMove) {
-        let item = PilatesClassItem(
-            name: move.name,
-            reps: move.reps,
-            seconds: move.seconds,
-            cue: move.cue,
-            buildingBlock: move.buildingBlock,
-            modification: move.modification,
-            props: move.props,
-            series: .infer(from: move.name)
-        )
-        selectedItems.append(item)
-    }
-}
 
-// MARK: - Add Section
-
-private struct AddSectionView: View {
-    @Binding var section: String
-    @Binding var items: [PilatesClassItem]
-    let onDone: () -> Void
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Section Name")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Theme.berry)
-                    TextField("e.g., Warm-Up, Core Work, Cool Down", text: $section)
-                        .padding(12)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.petal.opacity(0.3), lineWidth: 1))
-                }
-                .padding(16)
-                
-                HStack(spacing: 12) {
-                    Button(action: { dismiss() }) {
-                        Text("Cancel")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Theme.rose)
-                            .frame(maxWidth: .infinity)
-                            .padding(12)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Theme.petal.opacity(0.3), lineWidth: 1))
-                    }
-                    
-                    Button(action: saveSection) {
-                        Text("Add")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(12)
-                            .background(!section.trimmingCharacters(in: .whitespaces).isEmpty ? Theme.rose : Theme.petal)
-                            .cornerRadius(8)
-                    }
-                    .disabled(section.trimmingCharacters(in: .whitespaces).isEmpty)
-                }
-                .padding(16)
-                
-                Spacer()
-            }
-            .background(Theme.background.ignoresSafeArea())
-            .navigationTitle("New Section")
-            .navigationBarTitleDisplayMode(.inline)
-            .preferredColorScheme(.light)
+    private func filterLabel(_ text: String, active: Bool) -> some View {
+        HStack(spacing: 4) {
+            Text(text)
+            Image(systemName: "chevron.down").font(.caption2)
         }
-    }
-    
-    private func saveSection() {
-        let sectionItem = PilatesClassItem(
-            section: section,
-            name: "",  // Empty name marks this as a section header
-            cue: "",
-            buildingBlock: "",
-            modification: ""
-        )
-        items.append(sectionItem)
-        dismiss()
-        onDone()
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(active ? Theme.rose : Color.white, in: Capsule())
+        .foregroundStyle(active ? .white : Theme.berry)
     }
 }
 
@@ -2000,12 +1833,15 @@ private struct AddSectionView: View {
 /// - Filter by area (warm-up, arms, glutes, core, stretch) and props
 /// - Move detail with cue, Building Block, Modification
 /// - Add custom moves
+// WHAT: Library tab: search moves and filter by Style, Area and Props.
+// TO CHANGE: Add filter options: copy one of the chip rows. Styles: MoveStyle in Shared/LogModels.swift.
 struct LibraryView: View {
     @EnvironmentObject private var libraryStore: LibraryStore
     
     @State private var searchText = ""
     @State private var selectedAreas: Set<ExerciseArea> = []
     @State private var selectedProps: Set<String> = []
+    @State private var selectedStyles: Set<MoveStyle> = []
     @State private var showAddForm = false
     
     private var filteredMoves: [LibraryMove] {
@@ -2016,6 +1852,14 @@ struct LibraryView: View {
             result = result.filter { $0.name.lowercased().contains(searchText.lowercased()) }
         }
         
+        // Filter by style
+        if !selectedStyles.isEmpty {
+            result = result.filter { move in
+                guard let style = move.style else { return false }
+                return selectedStyles.contains(style)
+            }
+        }
+
         // Filter by area
         if !selectedAreas.isEmpty {
             result = result.filter { selectedAreas.contains($0.area) }
@@ -2071,6 +1915,40 @@ struct LibraryView: View {
             
             // Filters
             VStack(alignment: .leading, spacing: 12) {
+                // Style filter
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("STYLE")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.gold)
+
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(MoveStyle.allCases, id: \.self) { style in
+                                Button(action: {
+                                    if selectedStyles.contains(style) {
+                                        selectedStyles.remove(style)
+                                    } else {
+                                        selectedStyles.insert(style)
+                                    }
+                                }) {
+                                    Text(style.label)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(selectedStyles.contains(style) ? .white : Theme.brown)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(selectedStyles.contains(style) ? Theme.gold : Color.white)
+                                        .cornerRadius(16)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(selectedStyles.contains(style) ? Color.clear : Theme.gold.opacity(0.3), lineWidth: 1)
+                                        )
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                }
+
                 // Area filter
                 VStack(alignment: .leading, spacing: 8) {
                     Text("AREA")
@@ -2150,7 +2028,7 @@ struct LibraryView: View {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 48))
                         .foregroundStyle(Theme.petal)
-                    Text(searchText.isEmpty && selectedAreas.isEmpty && selectedProps.isEmpty ? "No moves yet" : "No matching moves")
+                    Text(searchText.isEmpty && selectedAreas.isEmpty && selectedProps.isEmpty && selectedStyles.isEmpty ? "No moves yet" : "No matching moves")
                         .font(.headline)
                         .foregroundStyle(Theme.brown)
                     Button(action: { showAddForm = true }) {
@@ -2195,6 +2073,8 @@ struct LibraryView: View {
 }
 
 // MARK: - Move Row View
+// WHAT: One move in the Library list.
+// TO CHANGE: What it shows: the Text lines below.
 private struct MoveRowView: View {
     let move: LibraryMove
     
@@ -2217,13 +2097,8 @@ private struct MoveRowView: View {
                     }
                     
                     HStack(spacing: 12) {
-                        if !move.reps.isEmpty {
-                            Label(move.reps, systemImage: "repeat")
-                                .font(.caption)
-                                .foregroundStyle(Theme.brown.opacity(0.6))
-                        }
                         if move.seconds > 0 {
-                            Label("\(move.seconds)s", systemImage: "clock")
+                            Label(TimeFormat.mmss(move.seconds), systemImage: "clock")
                                 .font(.caption)
                                 .foregroundStyle(Theme.brown.opacity(0.6))
                         }
@@ -2248,6 +2123,7 @@ private struct MoveRowView: View {
 }
 
 // MARK: - Move Detail View
+// WHAT: Full details for one Library move, with an Edit button.
 private struct MoveDetailView: View {
     @EnvironmentObject private var libraryStore: LibraryStore
     
@@ -2275,21 +2151,6 @@ private struct MoveDetailView: View {
                     }
                     
                     HStack(spacing: 16) {
-                        if !move.reps.isEmpty {
-                            VStack(spacing: 4) {
-                                Label("Reps", systemImage: "repeat")
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(Theme.gold)
-                                Text(move.reps)
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(Theme.brown)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(12)
-                            .background(Theme.gold.opacity(0.1))
-                            .cornerRadius(8)
-                        }
-                        
                         if move.seconds > 0 {
                             VStack(spacing: 4) {
                                 Label("Time", systemImage: "clock")
@@ -2390,6 +2251,8 @@ private struct MoveDetailView: View {
 }
 
 // MARK: - Move Form View
+// WHAT: Form to add or edit a Library move.
+// TO CHANGE: Prop choices: the props list near the top.
 private struct MoveFormView: View {
     @Environment(\.dismiss) var dismiss
     let libraryStore: LibraryStore
@@ -2405,6 +2268,7 @@ private struct MoveFormView: View {
     @State private var modification = ""
     
     // Common props to suggest
+    // TO CHANGE: prop choices in this builder. (Library moves use "Stretch band", "Yoga block", "Pilates ball"; match the spelling if you want filters to line up.)
     private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball", "Magic Circle"]
     
     private var isValid: Bool {
@@ -2429,13 +2293,17 @@ private struct MoveFormView: View {
                     }
                 }
                 
-                Section("Reps / Repetitions") {
-                    TextField("e.g., 5-10x or 100 pumps", text: $reps)
-                }
-                
+                // TO CHANGE: time steps (15 seconds) and longest time (30 min = 1800).
                 Section("Time") {
-                    TextField("Seconds (optional)", text: $seconds)
-                        .keyboardType(.numberPad)
+                    Stepper(value: Binding(get: { Int(seconds) ?? 0 }, set: { seconds = "\($0)" }), in: 0...1800, step: 15) {
+                        HStack {
+                            Text("Time")
+                            Spacer()
+                            Text(TimeFormat.mmss(Int(seconds) ?? 0))
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.rose)
+                        }
+                    }
                 }
                 
                 Section("Props") {
@@ -2538,6 +2406,7 @@ private struct MoveFormView: View {
 /// - Add button to create new student
 /// - Search and sort
 /// - Student detail view with teaching history
+// WHAT: Students tab: list of students and the add button.
 struct StudentsView: View {
     @EnvironmentObject private var studentStore: StudentStore
     @EnvironmentObject private var logStore: LogStore
@@ -2636,6 +2505,7 @@ struct StudentsView: View {
 }
 
 // MARK: - Student Row View
+// WHAT: One student in the list.
 private struct StudentRowView: View {
     let student: Student
     let logStore: LogStore
@@ -2703,6 +2573,7 @@ private struct StudentRowView: View {
 }
 
 // MARK: - Student Detail View
+// WHAT: One student: their info, teaching sessions with them, and total hours together.
 private struct StudentDetailView: View {
     @EnvironmentObject private var studentStore: StudentStore
     @EnvironmentObject private var logStore: LogStore
@@ -2897,6 +2768,7 @@ private struct StudentDetailView: View {
 }
 
 // MARK: - Student Form View
+// WHAT: Form to add or edit a student (name, contact, injuries, goals, notes).
 private struct StudentFormView: View {
     @Environment(\.dismiss) var dismiss
     let studentStore: StudentStore
@@ -3003,6 +2875,7 @@ private struct StudentFormView: View {
 
 // MARK: - Hours
 
+// WHAT: The iPhone share sheet used for CSV export.
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]
 

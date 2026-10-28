@@ -1,12 +1,22 @@
+// ======================================================================
+// WatchContentView.swift  (Apple Watch app)
+// WHAT THIS FILE DOES: Watch screens: the class list, the run screen (timer ring, controls, cues, haptics, 10-minutes-left alert), and the hours glance.
+// TO CHANGE: Haptics: handleHaptics(). 10-minute alert: announceTenMinutes(). Colors come from Theme in Shared/LogModels.swift.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import SwiftUI
 import WatchKit
 
 /// A run screen to open, either tapped from the list or sent from the iPhone.
+// WHAT: Which class to open on the watch (tapped, or sent from the iPhone).
 struct RunTarget: Hashable {
     let token: UUID
     let plan: PilatesClass
 }
 
+// WHAT: Watch home: app title, sync status, and your class list. Opens a class automatically when the iPhone starts one.
+// TO CHANGE: Row text: the Text lines inside NavigationLink.
 struct WatchContentView: View {
     @EnvironmentObject private var classStore: WatchClassStore
     @EnvironmentObject private var logStore: WatchLogStore
@@ -65,6 +75,7 @@ struct WatchContentView: View {
     }
 
     /// Jumps straight into a class the iPhone started.
+    // WHAT: when the iPhone starts a class, jump straight into it on the watch.
     private func openRequestedClass() {
         guard let request = connectivity.startRequest else { return }
         path = [RunTarget(token: request.id, plan: request.plan)]
@@ -73,6 +84,8 @@ struct WatchContentView: View {
     }
 }
 
+// WHAT: Watch class timer: section, move name, ring with time left, class time left, next move, controls, cues, End Class, and the log prompt.
+// TO CHANGE: Ring size: .frame(width: 118...). Haptics: handleHaptics(). 10-minute alert: announceTenMinutes().
 struct WatchRunView: View {
     @EnvironmentObject private var logStore: WatchLogStore
     @EnvironmentObject private var connectivity: WatchConnectivityManager
@@ -123,13 +136,6 @@ struct WatchRunView: View {
                         VStack(spacing: 0) {
                             Text(TimeFormat.mmss(controller.snapshot.currentItemRemaining))
                                 .font(.system(size: 32, weight: .semibold, design: .rounded).monospacedDigit())
-                            if !item.reps.isEmpty {
-                                Text(item.reps)
-                                    .font(.caption2)
-                                    .foregroundStyle(Theme.petal)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.7)
-                            }
                         }
                         .padding(.horizontal, 12)
                     }
@@ -221,6 +227,7 @@ struct WatchRunView: View {
         }
     }
 
+    // WHAT: two wrist taps and a gold "10 min left" badge for 6 seconds.
     private func announceTenMinutes() {
         WKInterfaceDevice.current().play(.notification)
         withAnimation { showTenMinutes = true }
@@ -232,6 +239,8 @@ struct WatchRunView: View {
         }
     }
 
+    // WHAT: wrist taps during class: a "start" tap on every new move, a click at 10 seconds left, and 3 taps for the last 3 seconds.
+    // TO CHANGE: the numbers 10 and 1...3, or the tap types (.start, .click, .notification, .success).
     private func handleHaptics(snapshot: TimerSnapshot, previous: TimerSnapshot?) {
         guard !snapshot.isPaused else { return }
         if previous == nil || snapshot.currentIndex != previous?.currentIndex {
@@ -268,10 +277,13 @@ struct WatchRunView: View {
 // MARK: - Watch Hours Glance
 
 /// Shows today's logged hours and remaining hours per type
+// WHAT: Watch hours glance: today's hours and hours left per type.
+// TO CHANGE: Goals here must match the iPhone goals in HoursView.
 private struct WatchHoursGlanceView: View {
     @EnvironmentObject private var logStore: WatchLogStore
     
     // Certification goals
+    // TO CHANGE: keep these goals the same as HoursView on the iPhone.
     private let practiceGoal = 20.0
     private let observationGoal = 10.0
     private let teachingGoal = 20.0

@@ -1,13 +1,22 @@
+// ======================================================================
+// WatchConnectivityManager.swift  (Apple Watch app)
+// WHAT THIS FILE DOES: Receives classes and "start this class" messages from the iPhone, and sends watch logs back.
+// TO CHANGE: How old a start request can be before it is ignored: see the TO CHANGE note in handleCommand().
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 import WatchConnectivity
 
 /// A class the iPhone asked the watch to start.
+// WHAT: A class the iPhone asked the watch to start.
 struct StartRequest: Identifiable, Equatable {
     let id = UUID()
     let plan: PilatesClass
 }
 
+// WHAT: Watch side of the iPhone <-> Watch connection.
 @MainActor
 final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published var status: String = "Waiting for phone sync"
@@ -46,6 +55,7 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
         guard info["command"] as? String == "startClass" else { return false }
         let sentAt = info["sentAt"] as? TimeInterval ?? 0
         // Ignore old requests that were queued while the watch was away.
+        // TO CHANGE: ignore start requests older than 2 hours (2 * 60 * 60 seconds).
         guard Date().timeIntervalSince1970 - sentAt < 2 * 60 * 60,
               let data = info["classData"] as? Data,
               let plan = try? JSONDecoder().decode(PilatesClass.self, from: data) else { return true }

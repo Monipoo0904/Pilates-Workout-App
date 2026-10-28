@@ -1,5 +1,13 @@
+// ======================================================================
+// TimerEngine.swift  (Shared by iPhone + Watch)
+// WHAT THIS FILE DOES: The class clock: works out which move you are on, time left in the move and in the class, pause/resume, next/back.
+// TO CHANGE: Rarely needed. It always follows the order of moves in the class.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 
+// WHAT: Everything the screens need to know about the timer right now.
 struct TimerSnapshot: Equatable {
     var currentIndex: Int
     var currentItemRemaining: Int
@@ -12,6 +20,7 @@ struct TimerSnapshot: Equatable {
     var isFinished: Bool
 }
 
+// WHAT: The class clock.
 final class TimerEngine {
     private(set) var plan: PilatesClass
     private var cumulativeEnds: [Int] = []

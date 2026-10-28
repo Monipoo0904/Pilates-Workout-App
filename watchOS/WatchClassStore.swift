@@ -1,6 +1,14 @@
+// ======================================================================
+// WatchClassStore.swift  (Apple Watch app)
+// WHAT THIS FILE DOES: Saves the classes on the watch and replaces them when the iPhone sends new ones.
+// TO CHANGE: Rarely needed.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 
+// WHAT: Your classes on the watch.
 @MainActor
 final class WatchClassStore: ObservableObject {
     @Published private(set) var classes: [PilatesClass] = []

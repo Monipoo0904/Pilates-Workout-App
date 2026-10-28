@@ -1,8 +1,16 @@
+// ======================================================================
+// PhoneConnectivityManager.swift  (iPhone app)
+// WHAT THIS FILE DOES: Talks to the Apple Watch: sends your classes, opens the watch app when a class starts, and receives watch logs.
+// TO CHANGE: Change the status messages shown on the phone here.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 import HealthKit
 import WatchConnectivity
 
+// WHAT: iPhone side of the iPhone <-> Watch connection.
 @MainActor
 final class PhoneConnectivityManager: NSObject, ObservableObject {
     @Published var syncStatus: String = "Not synced yet"
@@ -10,6 +18,8 @@ final class PhoneConnectivityManager: NSObject, ObservableObject {
     @Published var latestWatchLogs: [ClassLogEntry] = []
 
     private let healthStore = HKHealthStore()
+    /// Classes waiting to go to the watch because the connection wasn't ready yet.
+    private var pendingClasses: [PilatesClass]?
 
     override init() {
         super.init()
@@ -18,15 +28,27 @@ final class PhoneConnectivityManager: NSObject, ObservableObject {
         WCSession.default.activate()
     }
 
+    // WHAT: sends all your classes to the watch (the "Send to Watch" button).
     func sendClasses(_ classes: [PilatesClass]) {
+        guard WCSession.isSupported() else { return }
         guard WCSession.default.activationState == .activated else {
-            syncStatus = "Watch session not active"
+            // Not connected yet: remember these and send them as soon as the connection is ready.
+            pendingClasses = classes
+            syncStatus = "Will sync when your watch connects"
+            return
+        }
+        guard WCSession.default.isPaired, WCSession.default.isWatchAppInstalled else {
+            syncStatus = "Install Pilates Timer on your Apple Watch to sync"
             return
         }
         do {
             let data = try JSONEncoder().encode(classes)
             let payload: [String: Any] = ["classesData": data]
             try WCSession.default.updateApplicationContext(payload)
+            // Only the newest class list matters: cancel older queued copies, then queue this one.
+            for transfer in WCSession.default.outstandingUserInfoTransfers where transfer.userInfo["classesData"] != nil {
+                transfer.cancel()
+            }
             WCSession.default.transferUserInfo(payload)
             syncStatus = "Synced \(classes.count) class(es)"
         } catch {
@@ -80,7 +102,15 @@ final class PhoneConnectivityManager: NSObject, ObservableObject {
 extension PhoneConnectivityManager: WCSessionDelegate {
     nonisolated func sessionDidBecomeInactive(_ session: WCSession) {}
     nonisolated func sessionDidDeactivate(_ session: WCSession) {}
-    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {}
+    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
+        // Send anything that was saved before the connection was ready.
+        Task { @MainActor in
+            if let pending = self.pendingClasses {
+                self.pendingClasses = nil
+                self.sendClasses(pending)
+            }
+        }
+    }
 
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
         guard let data = userInfo["logEntries"] as? Data,

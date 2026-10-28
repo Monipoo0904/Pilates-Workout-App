@@ -1,7 +1,15 @@
+// ======================================================================
+// WorkoutSessionManager.swift  (Apple Watch app)
+// WHAT THIS FILE DOES: Runs an Apple "Pilates" workout during class (heart rate, rings, Fitness app).
+// TO CHANGE: Indoor/outdoor: change config.locationType in startPilatesWorkout().
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 import HealthKit
 
+// WHAT: Starts and ends the Apple Pilates workout on the watch.
 @MainActor
 final class WorkoutSessionManager: NSObject, ObservableObject {
     private let healthStore = HKHealthStore()
@@ -22,6 +30,7 @@ final class WorkoutSessionManager: NSObject, ObservableObject {
     func startPilatesWorkout() {
         let config = HKWorkoutConfiguration()
         config.activityType = .pilates
+        // TO CHANGE: .indoor or .outdoor (outdoor classes can use .outdoor).
         config.locationType = .indoor
         do {
             session = try HKWorkoutSession(healthStore: healthStore, configuration: config)

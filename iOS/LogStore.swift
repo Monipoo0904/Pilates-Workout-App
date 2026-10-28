@@ -1,6 +1,14 @@
+// ======================================================================
+// LogStore.swift  (iPhone app)
+// WHAT THIS FILE DOES: Saves and loads your logged hours (practice / observation / teaching) and exports them as CSV.
+// TO CHANGE: Change the CSV columns in exportCSV().
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 
+// WHAT: Your logged hours on the iPhone (saved in logs.json).
 @MainActor
 final class LogStore: ObservableObject {
     @Published private(set) var logs: [ClassLogEntry] = []

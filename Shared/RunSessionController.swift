@@ -1,6 +1,14 @@
+// ======================================================================
+// RunSessionController.swift  (Shared by iPhone + Watch)
+// WHAT THIS FILE DOES: Connects the timer to the screens: refreshes 4 times a second and tells the screen the current and next move.
+// TO CHANGE: Rarely needed.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 
+// WHAT: Runs the timer for a screen and tells it the current and next move.
 @MainActor
 final class RunSessionController: ObservableObject {
     @Published private(set) var snapshot: TimerSnapshot
@@ -55,6 +63,7 @@ final class RunSessionController: ObservableObject {
 
     private func beginTicking() {
         ticker?.cancel()
+        // WHAT: refresh the timer 4 times a second.
         ticker = Timer.publish(every: 0.25, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in

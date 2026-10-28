@@ -1,6 +1,14 @@
+// ======================================================================
+// WatchLogStore.swift  (Apple Watch app)
+// WHAT THIS FILE DOES: Saves classes you log on the watch until they sync to the iPhone.
+// TO CHANGE: Rarely needed.
+// Step-by-step help: HOW-TO-EDIT.md in the project folder.
+// ======================================================================
+
 import Foundation
 import Combine
 
+// WHAT: Logs made on the watch, kept until they sync to the iPhone.
 @MainActor
 final class WatchLogStore: ObservableObject {
     @Published private(set) var logs: [ClassLogEntry] = []
