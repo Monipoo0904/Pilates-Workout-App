@@ -1,0 +1,99 @@
+
+// MARK: - No-props versions
+
+// WHAT: A mat-only version of every move that uses a band, weights, ball, block, ring or chair.
+//       New mat-only moves are added to the Library; the builder can swap a whole class to them.
+// TO CHANGE: edit a move line in `moves`, or which version a prop move swaps to in `swaps` (lower-case prop move name → no-prop move name).
+enum NoProps {
+    static let moves: [LibraryMove] = [
+        LibraryMove(id: UUID(uuidString: "3f30295d-86cc-5388-be0d-9c6fe9f24154")!, name: "Arm Pull-Apart (no band)", area: .arms, props: [], reps: "", seconds: 60, cue: "Arms long at shoulder height, palms down. Open wide as if stretching a band, squeeze the shoulder blades, return slowly.", buildingBlock: "Smaller range, hands at chest height.", modification: "Shoulder pain: keep elbows soft and the range small.", style: .contemporary, layers: "Thumbs up → pulse when open → hold open 20 seconds."),
+        LibraryMove(id: UUID(uuidString: "654f8bea-e03e-5897-b624-45a6ba71ea54")!, name: "Seated Row (no band)", area: .arms, props: [], reps: "", seconds: 60, cue: "Sit tall, arms reach forward. Pull the elbows back past the ribs and squeeze the shoulder blades; reach forward slowly.", buildingBlock: "Sit on a folded mat; one arm at a time.", modification: "Low back pain: sit on a folded mat with knees bent.", style: .contemporary, layers: "Hold the squeeze 3 counts → lean back slightly → pulse at the back."),
+        LibraryMove(id: UUID(uuidString: "ab6159f1-1376-58be-941b-08006517181c")!, name: "Supine Leg Press", area: .glutes, props: [], reps: "", seconds: 60, cue: "On your back, knee to chest, foot flexed. Press the heel up and out to 45° like pushing into a wall, then draw it back in. Pelvis stays still.", buildingBlock: "Press toward the ceiling instead of 45°.", modification: "Low back pain: keep the other foot down and knee bent.", style: .contemporary, layers: "Lower angle → slow 4-count press → leg circles at full press."),
+        LibraryMove(id: UUID(uuidString: "a8e1eb4f-4658-5eb5-bb17-03bcd106117b")!, name: "Supine Hamstring Stretch", area: .stretch, props: [], reps: "", seconds: 60, cue: "On your back, hold behind the thigh or calf and draw the straight leg toward you. Other leg long or knee bent. Breathe and soften.", buildingBlock: "Hold behind the thigh with the knee bent.", modification: "Tight hamstrings or back pain: bend the bottom knee, foot on the mat.", style: .mobility, layers: "Straighten the bottom leg → open the leg to the side → cross it over the body."),
+        LibraryMove(id: UUID(uuidString: "8efa0acd-a533-56ac-b559-7551510c9357")!, name: "Kneeling Overhead Press (no weights)", area: .arms, props: [], reps: "", seconds: 60, cue: "Kneel tall, fists at shoulders. Press up as if pushing something heavy, ribs down; lower slowly with the same effort.", buildingBlock: "Sit on the heels.", modification: "Knee pain: stand or sit on a folded mat.", style: .contemporary, layers: "Slower 4-count lowering → half-kneeling lunge → pulse at the top."),
+        LibraryMove(id: UUID(uuidString: "d7247eb1-f902-554c-a281-5e4f624574d4")!, name: "Tension Bicep Curl", area: .arms, props: [], reps: "", seconds: 60, cue: "Make fists and curl as if lifting something heavy: squeeze hard on the way up, resist on the way down.", buildingBlock: "One arm at a time; press the other palm against the fist for resistance.", modification: "Wrist or elbow pain: smaller range, open hands.", style: .sculpt, layers: "Hold at 90° and pulse → slow 4-count lowering → curl in a squat hold."),
+        LibraryMove(id: UUID(uuidString: "95e1fd3c-882f-56b6-b4c4-48fadba7d3f3")!, name: "Bodyweight Triceps Kickback", area: .arms, props: [], reps: "", seconds: 60, cue: "Hinge forward, elbows high by the ribs. Straighten the arms back, palms up, squeeze the back of the arms; bend slowly.", buildingBlock: "Stand taller; smaller hinge.", modification: "Low back: kneel on all fours and do one arm at a time.", style: .sculpt, layers: "Hold straight 2 counts → pulses at the top → in a lunge."),
+        LibraryMove(id: UUID(uuidString: "a000da18-3bdf-54c8-a0bd-f9c36aa270bc")!, name: "Hug a Tree (no weights)", area: .arms, props: [], reps: "", seconds: 60, cue: "Arms in a wide circle at chest height, elbows soft. Close as if hugging a big tree, open with control. Shoulders down.", buildingBlock: "Smaller circle.", modification: "Shoulder pain: lower the arms below shoulder height.", style: .contemporary, layers: "Pulse in the hug → hold 20 seconds → half-kneeling lunge."),
+        LibraryMove(id: UUID(uuidString: "db4b42b8-ea3a-501a-8775-13a17dd0129f")!, name: "Bodyweight Hinge", area: .glutes, props: [], reps: "", seconds: 60, cue: "Feet hip-width, soft knees. Slide the hands down the thighs as the hips reach back, flat back; squeeze the glutes to stand.", buildingBlock: "Hands on the hips, smaller hinge.", modification: "Low back pain: smaller range, hands on the thighs.", style: .sculpt, layers: "Slow 4-count lower → single-leg hinge → hold at the bottom."),
+        LibraryMove(id: UUID(uuidString: "c15a61f7-24ee-5f79-a17a-c4b2c819cae7")!, name: "Bridge with Arm Reach", area: .glutes, props: [], reps: "", seconds: 60, cue: "Lift to bridge. Arms reach to the ceiling, then open wide and close, hips steady.", buildingBlock: "Arms stay on the mat.", modification: "Neck or back pain: lower bridge.", style: .contemporary, layers: "Higher bridge → march one foot → single-leg bridge."),
+        LibraryMove(id: UUID(uuidString: "8d88e712-996c-549b-a451-a7d10a739778")!, name: "Arm Circles (no weights)", area: .arms, props: [], reps: "", seconds: 60, cue: "Arms out to the sides at shoulder height. Small circles forward, then back. Shoulders down, fingertips long.", buildingBlock: "Smaller circles, arms slightly lower.", modification: "Shoulder pain: arms lower, take breaks.", style: .barre, layers: "Bigger circles → pulse up and down → hold 30 seconds."),
+        LibraryMove(id: UUID(uuidString: "42765e93-89bc-5d30-8a2c-788f0e97bfe0")!, name: "Front Raise (no weights)", area: .arms, props: [], reps: "", seconds: 60, cue: "Fists or open hands. Lift the arms to shoulder height in front, lower in 3 counts. Ribs stay down.", buildingBlock: "One arm at a time.", modification: "Shoulder pain: lift only to chest height.", style: .barre, layers: "Slow 4-count lowering → pulse at shoulder height → alternate arms."),
+        LibraryMove(id: UUID(uuidString: "167edd1f-7436-584c-93c5-86c02e3884f8")!, name: "Side-Lying Leg Lift", area: .glutes, props: [], reps: "", seconds: 60, cue: "Lie on your side, legs long and stacked. Lift the top leg to hip height and lower with control. Hips stacked, waist long.", buildingBlock: "Bend the bottom knee for balance.", modification: "Hip pain: smaller lift; pillow between the knees between sets.", style: .contemporary, layers: "Pulses at the top → circles → bottom leg lifts too."),
+        LibraryMove(id: UUID(uuidString: "d2ebc863-521a-5688-ba49-db5982492b6a")!, name: "Glute Bridge", area: .glutes, props: [], reps: "", seconds: 60, cue: "Feet hip-width, close to the seat. Press through the heels and squeeze the glutes to lift; lower slowly.", buildingBlock: "Smaller lift.", modification: "Neck: keep weight on the shoulders, not the neck. Knee pain: feet farther away.", style: .sculpt, layers: "Pulses at the top → hold 3 breaths → single leg."),
+        LibraryMove(id: UUID(uuidString: "33ae049e-5f10-522c-a63e-abc6e57024f4")!, name: "Lateral Squat Walk", area: .glutes, props: [], reps: "", seconds: 60, cue: "Sit into a quarter squat. Step out to the side and follow, staying low. Knees press out.", buildingBlock: "Higher squat, smaller steps.", modification: "Knee pain: stay taller.", style: .sculpt, layers: "Lower squat → wider steps → pulse each step."),
+        LibraryMove(id: UUID(uuidString: "c00940e1-c5dd-56c9-ab42-9204a201ed0e")!, name: "Fire Hydrant", area: .glutes, props: [], reps: "", seconds: 60, cue: "On all fours, knees under hips. Lift one bent knee out to the side to hip height, keep the hips level, lower slowly.", buildingBlock: "Smaller lift.", modification: "Wrists: forearms down. Knees: fold the mat.", style: .contemporary, layers: "Pulses at the top → kick the leg straight out → hold 3 counts."),
+        LibraryMove(id: UUID(uuidString: "2817aefe-7337-53b7-8b0a-e4e97a3fb655")!, name: "Bridge with Inner Thigh Squeeze", area: .glutes, props: [], reps: "", seconds: 60, cue: "Feet and knees together. Squeeze the inner thighs as if holding a block, lift to bridge, keep the squeeze down.", buildingBlock: "Smaller lift.", modification: "Back or knee pain: smaller lift, feet hip-width.", style: .contemporary, layers: "Pulses at the top → march → single leg."),
+        LibraryMove(id: UUID(uuidString: "5f2bb3aa-25e9-50a3-9932-0f734e64a35d")!, name: "Knees-to-Chest Rock", area: .stretch, props: [], reps: "", seconds: 60, cue: "On your back, hug the knees in. Rock gently side to side and breathe into the low back.", buildingBlock: "One knee at a time.", modification: "Knee pain: hold behind the thighs.", style: .mobility, layers: "Slow circles → add a gentle hug and release → Happy Baby."),
+        LibraryMove(id: UUID(uuidString: "72bdab2a-831e-5757-8ecf-b88b02abeefc")!, name: "Narrow Squat", area: .glutes, props: [], reps: "", seconds: 60, cue: "Feet and knees close. Sit back into a squat squeezing the knees together, chest tall; press up.", buildingBlock: "Smaller range.", modification: "Knee pain: shallower squat.", style: .sculpt, layers: "Pulse at the bottom → heel lift → hold low 20 seconds."),
+        LibraryMove(id: UUID(uuidString: "71cd7e8d-370a-599e-85a9-4fed14917066")!, name: "Roll Back", area: .core, props: [], reps: "", seconds: 60, cue: "Sit tall, knees bent, hands behind the thighs. Curl the tailbone under and roll halfway back, hold, then return.", buildingBlock: "Smaller roll.", modification: "Back pain: tiny range, hold the thighs firmly.", style: .contemporary, layers: "Arms reach forward → add a twist → arms overhead."),
+        LibraryMove(id: UUID(uuidString: "8103bef3-51a3-51ab-9846-f73cc3938116")!, name: "Prayer Press", area: .arms, props: [], reps: "", seconds: 60, cue: "Palms pressed together at the chest, elbows wide. Press hard, push the hands forward and back keeping the press.", buildingBlock: "Hold the press in one place.", modification: "Wrist pain: press with fists.", style: .contemporary, layers: "Pulses → press overhead → in a chest lift."),
+        LibraryMove(id: UUID(uuidString: "8d1c8217-f2b0-5b04-b61e-29aae752a323")!, name: "Clasped Chest Opener", area: .stretch, props: [], reps: "", seconds: 60, cue: "Clasp the hands behind the back (or hold the elbows). Lift the chest and draw the shoulder blades together. Breathe.", buildingBlock: "Hold the opposite elbows.", modification: "Shoulder pain: hands on the low back.", style: .mobility, layers: "Lift the clasped hands → fold forward with arms up → longer hold."),
+        LibraryMove(id: UUID(uuidString: "41f60d14-5e66-5142-b894-05ff95f51628")!, name: "Freestanding Plié", area: .glutes, props: [], reps: "", seconds: 60, cue: "Heels together, toes out, hands on hips or arms in second. Bend the knees over the toes, lengthen up. No chair.", buildingBlock: "Smaller bend.", modification: "Knee pain: less turnout, smaller bend.", style: .barre, layers: "Heels lifted → pulse low → arms overhead."),
+        LibraryMove(id: UUID(uuidString: "0f1496ed-6807-56aa-861f-714deddb338d")!, name: "Freestanding Plié Pulses", area: .glutes, props: [], reps: "", seconds: 60, cue: "Wide plié, hands on hips. Lower and pulse an inch up and down, chest tall. No chair.", buildingBlock: "Higher position.", modification: "Knee pain: less turnout, higher pulses.", style: .barre, layers: "Heels lifted → lower pulses → hold 20 seconds at the end."),
+        LibraryMove(id: UUID(uuidString: "3e2a5b65-5aae-5f7e-824e-ed926f2b0c1a")!, name: "Freestanding Relevé", area: .glutes, props: [], reps: "", seconds: 60, cue: "Feet parallel, hands on hips. Rise to the balls of the feet, lower in 3 counts. No chair.", buildingBlock: "Hand on the wall or a partner.", modification: "Ankle or balance issues: stand near a wall.", style: .barre, layers: "Arms overhead → single leg → hold at the top."),
+        LibraryMove(id: UUID(uuidString: "b587f7bd-0a76-5c19-9a52-37c2ace85b20")!, name: "Freestanding Arabesque Lift", area: .glutes, props: [], reps: "", seconds: 60, cue: "Hinge forward slightly, hands on hips. Lift the straight leg back from the glute, lower. Hips square. No chair.", buildingBlock: "Toe stays on the floor; small lift.", modification: "Low back: smaller lift, hinge less.", style: .barre, layers: "Hold at the top 3 counts → pulses → standing heel lifted."),
+        LibraryMove(id: UUID(uuidString: "7d946d91-6ace-5ac9-9596-9776d59a2e4e")!, name: "Freestanding Attitude Lift", area: .glutes, props: [], reps: "", seconds: 60, cue: "Hands on hips. Bent knee lifts behind and out to the side, lower with control. No chair.", buildingBlock: "Smaller lift.", modification: "Balance: stand near a wall.", style: .barre, layers: "Pulse at the top → hold → standing heel lifted."),
+        LibraryMove(id: UUID(uuidString: "ece3405d-1cb0-5eb4-84fd-908fd279160d")!, name: "Curtsy Lunge (no chair)", area: .glutes, props: [], reps: "", seconds: 60, cue: "Hands on hips. Step back and across into a curtsy, front knee over the ankle, press up. No chair.", buildingBlock: "Smaller step, tap only.", modification: "Knee pain: shallow range.", style: .barre, layers: "Pulse at the bottom → knee lift between reps → hold low."),
+        LibraryMove(id: UUID(uuidString: "d1a2746a-683e-5927-8abf-6a87ca220f09")!, name: "Freestanding Side Leg Lift", area: .glutes, props: [], reps: "", seconds: 60, cue: "Hands on hips, standing tall. Lift the straight leg to the side without leaning, lower slowly. No chair.", buildingBlock: "Smaller lift.", modification: "Balance: stand near a wall.", style: .barre, layers: "Pulse at the top → circles → hold at the top."),
+        LibraryMove(id: UUID(uuidString: "0ef09084-6be2-59d9-95b8-95f9bef67435")!, name: "Squat to Calf Raise (no weights)", area: .glutes, props: [], reps: "", seconds: 60, cue: "Squat, press up, and rise onto the toes; lower the heels and sit back again. Arms forward for balance.", buildingBlock: "Skip the calf raise.", modification: "Knee pain: shallower squat.", style: .sculpt, layers: "Pause at the top → pulse in the squat → slow 4-count lowering."),
+        LibraryMove(id: UUID(uuidString: "1478aa34-eeca-5df4-a355-8031d89a0d96")!, name: "Bent-Over Row (no weights)", area: .arms, props: [], reps: "", seconds: 60, cue: "Hinge forward, flat back, fists reaching down. Row the elbows back past the ribs, squeeze, lower slowly.", buildingBlock: "Smaller hinge.", modification: "Low back: hands on thighs, one arm at a time.", style: .sculpt, layers: "Pause at the top → pulses → one arm at a time."),
+        LibraryMove(id: UUID(uuidString: "7be95aee-f61a-5a9f-be39-ca22acf0c245")!, name: "Cross-Legged Breathing & Pelvic Floor", area: .warmup, props: [], reps: "", seconds: 60, cue: "Sit tall cross-legged on a folded mat. Breathe wide into the ribs; on the exhale gently lift the pelvic floor, release on the inhale.", buildingBlock: "Sit against a wall.", modification: "Hip or knee pain: sit on a folded mat with legs out.", style: .prenatal, layers: "Longer exhale → hold the lift 3 counts → add arms."),
+        LibraryMove(id: UUID(uuidString: "83df3a8f-ae74-5d13-9f2f-67c8d365ce02")!, name: "Standing Hip Circles", area: .warmup, props: [], reps: "", seconds: 60, cue: "Feet hip-width, hands on hips. Circle the hips slowly one way, then the other.", buildingBlock: "Smaller circles.", modification: "Balance: hand on a wall.", style: .prenatal, layers: "Bigger circles → figure eights → arms overhead."),
+        LibraryMove(id: UUID(uuidString: "9f3e6cc3-07fb-53c5-8ccb-4ba4f96280cd")!, name: "Wide Squat Hold", area: .glutes, props: [], reps: "", seconds: 60, cue: "Wide stance, toes out, hands at the heart. Sit into a comfortable squat and breathe; press up slowly.", buildingBlock: "Higher squat; hand on a wall.", modification: "Pelvic pain: narrower stance, smaller range.", style: .prenatal, layers: "Lower → hold 20 seconds → heel lift."),
+    ]
+
+    static let swaps: [String: String] = [
+        "band pull-apart": "Arm Pull-Apart (no band)",
+        "seated band row": "Seated Row (no band)",
+        "band leg press": "Supine Leg Press",
+        "band hamstring stretch": "Supine Hamstring Stretch",
+        "kneeling overhead press": "Kneeling Overhead Press (no weights)",
+        "kneeling shoulder presses": "Kneeling Overhead Press (no weights)",
+        "kneeling shoulder press to tricep dip": "Kneeling Overhead Press (no weights)",
+        "bicep curl": "Tension Bicep Curl",
+        "triceps kickback": "Bodyweight Triceps Kickback",
+        "hug a tree": "Hug a Tree (no weights)",
+        "dumbbell deadlift": "Bodyweight Hinge",
+        "chest press in bridge": "Bridge with Arm Reach",
+        "arm circles": "Arm Circles (no weights)",
+        "arm series: front raise": "Front Raise (no weights)",
+        "side-lying leg lift with wrist weight": "Side-Lying Leg Lift",
+        "side-lying leg lifts with ball": "Side-Lying Leg Lift",
+        "banded clamshell": "Clamshell",
+        "banded glute bridge": "Glute Bridge",
+        "lateral band walk": "Lateral Squat Walk",
+        "banded fire hydrant": "Fire Hydrant",
+        "bridge with block squeeze": "Bridge with Inner Thigh Squeeze",
+        "bridge with block": "Bridge with Inner Thigh Squeeze",
+        "bridge with ball squeeze": "Bridge with Inner Thigh Squeeze",
+        "supported bridge": "Knees-to-Chest Rock",
+        "squat with block squeeze": "Narrow Squat",
+        "squats with block squeeze": "Narrow Squat",
+        "hundred with ball squeeze": "The Hundred",
+        "ball roll back": "Roll Back",
+        "dead bug with ball": "Dead Bug",
+        "v-sit ball pass": "Teaser Prep",
+        "ring inner thigh squeeze": "Inner Thigh Lift",
+        "ring chest press": "Prayer Press",
+        "chest squeeze": "Prayer Press",
+        "chest opener": "Clasped Chest Opener",
+        "plié": "Freestanding Plié",
+        "plié pulses": "Freestanding Plié Pulses",
+        "relevé": "Freestanding Relevé",
+        "arabesque lift": "Freestanding Arabesque Lift",
+        "attitude lift": "Freestanding Attitude Lift",
+        "curtsy lunge": "Curtsy Lunge (no chair)",
+        "standing side leg lift": "Freestanding Side Leg Lift",
+        "squat to calf raise": "Squat to Calf Raise (no weights)",
+        "bent-over row": "Bent-Over Row (no weights)",
+        "seated breathing & pelvic floor": "Cross-Legged Breathing & Pelvic Floor",
+        "seated ball hip circles": "Standing Hip Circles",
+        "supported squat": "Wide Squat Hold",
+    ]
+
+    /// The no-prop Library move for a prop move, or nil if the move needs no props (or has no version yet).
+    static func version(of name: String) -> LibraryMove? {
+        guard let target = swaps[MoveNames.key(name)] else { return nil }
+        return LibraryMoveSet.all.first { $0.name == target }
+    }
+}

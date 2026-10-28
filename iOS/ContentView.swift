@@ -393,6 +393,9 @@ private struct MoveCard: View {
             if !item.displayLayers.isEmpty {
                 LabeledNote(title: "Layer up", text: item.displayLayers, icon: "plus.square.on.square", color: Theme.berry)
             }
+            if let noProps = NoProps.version(of: item.name) {
+                LabeledNote(title: "No props", text: "\(noProps.name): \(noProps.cue)", icon: "hand.raised.fill", color: Theme.sage)
+            }
             if !item.transition.isEmpty {
                 LabeledNote(title: "Transition", text: item.transition, icon: "arrow.turn.down.right", color: Theme.gold)
             }
@@ -1287,6 +1290,23 @@ enum BuilderStart: Identifiable {
 }
 
 // WHAT: One move while you're building. The id lets the list drag, delete and edit the right row.
+// WHAT: the mat-only version of a move (same time and section), or nil if it needs no props.
+extension DraftMove {
+    func withoutProps() -> DraftMove? {
+        guard let version = NoProps.version(of: item.name) else { return nil }
+        var copy = self
+        copy.item.name = version.name
+        copy.item.cue = version.cue
+        copy.item.setup = ""
+        copy.item.buildingBlock = version.buildingBlock
+        copy.item.modification = version.modification
+        copy.item.layers = version.displayLayers
+        copy.item.props = []
+        copy.perSide = perSide || Sidedness.isOneSided(version.name)
+        return copy
+    }
+}
+
 struct DraftMove: Identifiable, Equatable {
     let id = UUID()
     var item: PilatesClassItem
@@ -1460,6 +1480,17 @@ struct ClassBuilderView: View {
                     } label: {
                         Label("Write my own move", systemImage: "square.and.pencil")
                     }
+                    let propMoves = moves.filter { $0.withoutProps() != nil }.count
+                    if propMoves > 0 {
+                        Button {
+                            withAnimation {
+                                moves = moves.map { $0.withoutProps() ?? $0 }
+                                if !moves.contains(where: { !$0.item.props.isEmpty }) { extraProps = "Mat" }
+                            }
+                        } label: {
+                            Label("Make it prop-free (swap \(propMoves) moves)", systemImage: "hand.raised")
+                        }
+                    }
                 }
                 .foregroundStyle(Theme.rose)
 
@@ -1594,7 +1625,7 @@ struct ClassBuilderView: View {
         if library?.area == .stretch || key.contains("stretch") || key.contains("child's pose") || key.contains("roll down") {
             return (7, "Cool-Down")
         }
-        let standingWords = ["squat", "lunge", "plié", "relevé", "deadlift", "skater", "curtsy", "chair pose", "standing", "walkout", "arabesque", "attitude", "balance"]
+        let standingWords = ["hinge", "squat", "lunge", "plié", "relevé", "deadlift", "skater", "curtsy", "chair pose", "standing", "walkout", "arabesque", "attitude", "balance"]
         if library?.style == .barre || library?.style == .standing || standingWords.contains(where: key.contains) {
             return (2, "Standing")
         }
@@ -1822,6 +1853,14 @@ private struct MoveEditorView: View {
                         set: { move.item.props = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } }
                     ))
                 }
+                if let noProps = NoProps.version(of: move.item.name) {
+                    Section("No props?") {
+                        Button("Swap to \(noProps.name)") {
+                            if let swapped = move.withoutProps() { move = swapped }
+                        }
+                        .foregroundStyle(Theme.rose)
+                    }
+                }
                 Section {
                     Button("Delete this move", role: .destructive) {
                         onDelete()
@@ -1874,7 +1913,7 @@ private struct LibraryPickerView: View {
             (search.isEmpty || move.name.localizedCaseInsensitiveContains(search)) &&
             (style == nil || move.style == style) &&
             (area == nil || move.area == area) &&
-            (prop == nil || move.props.contains { $0.lowercased() == prop!.lowercased() })
+            (prop == nil || (prop == "No props" ? move.props.isEmpty : move.props.contains { $0.lowercased() == prop!.lowercased() }))
         }
     }
 
@@ -1894,6 +1933,7 @@ private struct LibraryPickerView: View {
                             } label: { filterLabel(area?.label ?? "Area", active: area != nil) }
                             Menu {
                                 Button("Any props") { prop = nil }
+                                Button("No props") { prop = "No props" }
                                 ForEach(allProps, id: \.self) { p in Button(p) { prop = p } }
                             } label: { filterLabel(prop ?? "Props", active: prop != nil) }
                         }
@@ -2014,9 +2054,12 @@ struct LibraryView: View {
         }
         
         // Filter by props
+        // "No props" shows mat-only moves.
         if !selectedProps.isEmpty {
+            let realProps = selectedProps.subtracting(["No props"])
             result = result.filter { move in
-                selectedProps.allSatisfy { prop in move.props.contains(prop) }
+                (!selectedProps.contains("No props") || move.props.isEmpty) &&
+                realProps.allSatisfy { prop in move.props.contains(prop) }
             }
         }
         
@@ -2024,7 +2067,7 @@ struct LibraryView: View {
     }
     
     private var allProps: [String] {
-        Array(Set(libraryStore.moves.flatMap { $0.props })).sorted()
+        ["No props"] + Array(Set(libraryStore.moves.flatMap { $0.props })).sorted()
     }
     
     var body: some View {
@@ -2361,6 +2404,22 @@ private struct MoveDetailView: View {
                 .padding(16)
                 .background(Color.white)
                 .cornerRadius(12)
+
+                // Without props
+                if let noProps = NoProps.version(of: move.name) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Without props: \(noProps.name)", systemImage: "hand.raised.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.berry)
+                        Text(noProps.cue)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                }
 
                 // Layer up (harder options)
                 if !move.displayLayers.isEmpty {
