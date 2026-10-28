@@ -14,10 +14,8 @@ struct ContentView: View {
             }
             .tabItem { Label("Classes", systemImage: "figure.pilates") }
 
-            NavigationStack {
-                LogsView()
-            }
-            .tabItem { Label("Hours", systemImage: "clock.badge.checkmark") }
+            HoursView()
+                .tabItem { Label("Hours", systemImage: "clock.badge.checkmark") }
         }
         .tint(Theme.rose)
         .preferredColorScheme(.light)
@@ -646,106 +644,675 @@ private struct RoundControl: View {
     }
 }
 
-// MARK: - Hours
-
-struct LogsView: View {
+// MARK: - Hours Tab View
+/// Main Hours tab showing:
+/// - Progress rings (Practice/Observation/Teaching vs. Nov 13 goals)
+/// - Hours logged per type, hours remaining
+/// - Days until deadline and weekly targets
+/// - "Log a session" form with date, type, hours, place, student selection, notes
+/// - Session list grouped by week, filterable by type
+/// - CSV export, weekly plan, edit/delete individual entries
+struct HoursView: View {
     @EnvironmentObject private var logStore: LogStore
-    @State private var exportURL: URL?
-    @State private var showShare = false
-
+    @StateObject private var studentStore = StudentStore()
+    
+    @State private var selectedTab: HoursTab = .progress
+    @State private var selectedFilter: LogType? = nil
+    @State private var showLogForm = false
+    @State private var editingEntry: ClassLogEntry? = nil
+    @State private var showWeeklyPlan = false
+    
+    enum HoursTab {
+        case progress, sessionLog, weeklyPlan
+    }
+    
+    // MARK: - Goal Tracking
+    /// Hard-coded goals and deadline (Nov 13, 2026)
+    private let practiceGoal: Double = 20.0
+    private let observationGoal: Double = 10.0
+    private let teachingGoal: Double = 20.0
+    private let modulesGoal: Double = 3.5
+    private let deadline = Calendar.current.date(from: DateComponents(year: 2026, month: 11, day: 13))!
+    
+    private var totalGoal: Double {
+        practiceGoal + observationGoal + teachingGoal + modulesGoal
+    }
+    
+    private var practiceHours: Double {
+        logStore.totalHours(for: .practice)
+    }
+    
+    private var observationHours: Double {
+        logStore.totalHours(for: .observation)
+    }
+    
+    private var teachingHours: Double {
+        logStore.totalHours(for: .teaching)
+    }
+    
+    private var totalHours: Double {
+        practiceHours + observationHours + teachingHours
+    }
+    
+    private var practiceRemaining: Double {
+        max(0, practiceGoal - practiceHours)
+    }
+    
+    private var observationRemaining: Double {
+        max(0, observationGoal - observationHours)
+    }
+    
+    private var teachingRemaining: Double {
+        max(0, teachingGoal - teachingHours)
+    }
+    
+    private var daysRemaining: Int {
+        Calendar.current.dateComponents([.day], from: Date(), to: deadline).day ?? 0
+    }
+    
+    private var weeksRemaining: Double {
+        max(0.1, Double(daysRemaining) / 7.0)
+    }
+    
+    private var weeklyPracticeTarget: Double {
+        practiceRemaining / weeksRemaining
+    }
+    
+    private var weeklyObservationTarget: Double {
+        observationRemaining / weeksRemaining
+    }
+    
+    private var weeklyTeachingTarget: Double {
+        teachingRemaining / weeksRemaining
+    }
+    
+    private var overallProgress: Double {
+        totalGoal > 0 ? totalHours / totalGoal : 0
+    }
+    
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Certification hours")
-                    .font(Theme.display(32))
-                    .foregroundStyle(Theme.berry)
-
-                HStack(spacing: 10) {
-                    GoalCard(label: "Practice", current: logStore.totalHours(for: .practice), goal: 20, tint: Theme.rose)
-                    GoalCard(label: "Observe", current: logStore.totalHours(for: .observation), goal: 10, tint: Theme.gold)
-                    GoalCard(label: "Teaching", current: logStore.totalHours(for: .teaching), goal: 20, tint: Theme.berry)
-                }
-
-                Text("Entries")
-                    .font(.headline)
-                    .foregroundStyle(Theme.berry)
-                    .padding(.top, 6)
-
-                if logStore.logs.isEmpty {
-                    Text("Finish a class and choose Teaching, Practice or Observation to log it here.")
-                        .font(.subheadline)
-                        .foregroundStyle(Theme.brown.opacity(0.7))
-                }
-
-                ForEach(logStore.logs) { log in
-                    HStack {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(log.className).font(.subheadline.weight(.semibold)).foregroundStyle(Theme.berry)
-                            Text("\(log.date.formatted(date: .abbreviated, time: .shortened)) · \(log.sourceDevice)")
-                                .font(.caption)
-                                .foregroundStyle(Theme.brown.opacity(0.7))
-                        }
-                        Spacer()
-                        VStack(alignment: .trailing, spacing: 3) {
-                            Text(String(format: "%.2f h", log.hours)).font(.subheadline.monospacedDigit().weight(.semibold))
-                            Chip(text: log.type.rawValue.capitalized, tint: tint(for: log.type))
+        NavigationStack {
+            TabView(selection: $selectedTab) {
+                // MARK: - Tab 1: Progress
+                VStack(spacing: 0) {
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            // Header
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("CERTIFICATION PROGRESS")
+                                    .font(.caption.weight(.bold))
+                                    .tracking(2)
+                                    .foregroundStyle(Theme.gold)
+                                Text("Hours toward Peak Pilates Level I")
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.brown.opacity(0.8))
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(20)
+                            .background(Theme.blush)
+                            
+                            VStack(spacing: 20) {
+                                // Overall progress ring
+                                HStack(spacing: 16) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text("Overall Progress")
+                                            .font(.headline)
+                                            .foregroundStyle(Theme.berry)
+                                        Text("\(String(format: "%.1f", totalHours)) / \(String(format: "%.1f", totalGoal)) hours")
+                                            .font(.caption)
+                                            .foregroundStyle(Theme.brown.opacity(0.8))
+                                        HStack(spacing: 12) {
+                                            Text(overallProgress >= 1.0 ? "✅ Complete!" : "On track")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(overallProgress >= 1.0 ? Theme.sage : Theme.clay)
+                                            Text("\(daysRemaining) days left")
+                                                .font(.caption)
+                                                .foregroundStyle(Theme.brown.opacity(0.6))
+                                        }
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    TimerRing(progress: min(1.0, overallProgress), lineWidth: 12, track: Theme.petal, tint: Theme.rose)
+                                        .frame(width: 80, height: 80)
+                                }
+                                .padding(16)
+                                .background(Theme.cream.opacity(0.8))
+                                .cornerRadius(12)
+                                
+                                // Individual progress cards
+                                VStack(spacing: 12) {
+                                    ProgressCard(
+                                        type: .practice,
+                                        hours: practiceHours,
+                                        goal: practiceGoal,
+                                        remaining: practiceRemaining,
+                                        weeklyTarget: weeklyPracticeTarget
+                                    )
+                                    ProgressCard(
+                                        type: .observation,
+                                        hours: observationHours,
+                                        goal: observationGoal,
+                                        remaining: observationRemaining,
+                                        weeklyTarget: weeklyObservationTarget
+                                    )
+                                    ProgressCard(
+                                        type: .teaching,
+                                        hours: teachingHours,
+                                        goal: teachingGoal,
+                                        remaining: teachingRemaining,
+                                        weeklyTarget: weeklyTeachingTarget
+                                    )
+                                }
+                                
+                                // Action buttons
+                                HStack(spacing: 10) {
+                                    Button(action: { showLogForm = true }) {
+                                        Label("Log Session", systemImage: "plus.circle.fill")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.white)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(12)
+                                            .background(Theme.rose)
+                                            .cornerRadius(10)
+                                    }
+                                    
+                                    if let url = logStore.exportCSV() {
+                                        ShareLink(item: url, subject: Text("Pilates Hours Log")) {
+                                            Label("Export", systemImage: "square.and.arrow.up")
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(Theme.rose)
+                                                .frame(maxWidth: .infinity)
+                                                .padding(12)
+                                                .background(Theme.petal.opacity(0.3))
+                                                .cornerRadius(10)
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(20)
                         }
                     }
-                    .padding(14)
-                    .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+                }
+                .tag(HoursTab.progress)
+                .tabItem {
+                    Label("Progress", systemImage: "chart.pie.fill")
+                }
+                
+                // MARK: - Tab 2: Session Log
+                VStack(spacing: 0) {
+                    // Filter buttons
+                    HStack(spacing: 8) {
+                        ForEach(LogType.allCases, id: \.self) { type in
+                            Button(action: { selectedFilter = selectedFilter == type ? nil : type }) {
+                                Text(type.rawValue.capitalized)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(selectedFilter == type ? .white : Theme.rose)
+                                    .padding(8)
+                                    .background(selectedFilter == type ? Theme.rose : Theme.petal.opacity(0.3))
+                                    .cornerRadius(8)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(Theme.blush)
+                    
+                    ScrollView {
+                        VStack(spacing: 16) {
+                            let filtered = selectedFilter != nil ? logStore.logs.filter { $0.type == selectedFilter } : logStore.logs
+                            
+                            if filtered.isEmpty {
+                                VStack(spacing: 12) {
+                                    Image(systemName: "chart.bar")
+                                        .font(.system(size: 40))
+                                        .foregroundStyle(Theme.petal)
+                                    Text("No sessions logged yet")
+                                        .font(.headline)
+                                        .foregroundStyle(Theme.brown)
+                                    Button(action: { showLogForm = true }) {
+                                        Text("Log your first session")
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(Theme.rose)
+                                    }
+                                }
+                                .padding(40)
+                            } else {
+                                ForEach(groupedByWeek(filtered), id: \.key) { week, entries in
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Text(week)
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(Theme.gold)
+                                            .tracking(1)
+                                        
+                                        ForEach(entries, id: \.id) { entry in
+                                            SessionLogCell(entry: entry, studentStore: studentStore, onEdit: { editingEntry = entry }, onDelete: { logStore.delete(entry) })
+                                        }
+                                    }
+                                    .padding(16)
+                                    .background(Theme.cream.opacity(0.8))
+                                    .cornerRadius(12)
+                                }
+                            }
+                        }
+                        .padding(20)
+                    }
+                }
+                .tag(HoursTab.sessionLog)
+                .tabItem {
+                    Label("Sessions", systemImage: "list.bullet")
+                }
+                
+                // MARK: - Tab 3: Weekly Plan
+                WeeklyPlanView(
+                    weeklyPracticeTarget: weeklyPracticeTarget,
+                    weeklyObservationTarget: weeklyObservationTarget,
+                    weeklyTeachingTarget: weeklyTeachingTarget
+                )
+                .tag(HoursTab.weeklyPlan)
+                .tabItem {
+                    Label("Plan", systemImage: "calendar")
                 }
             }
-            .padding(20)
+            .background(Theme.background.ignoresSafeArea())
+            .environmentObject(studentStore)
+        }
+        .sheet(isPresented: $showLogForm) {
+            LogSessionForm(logStore: logStore, studentStore: studentStore, editingEntry: $editingEntry)
+        }
+    }
+    
+    // MARK: - Helper: Group logs by week
+    private func groupedByWeek(_ entries: [ClassLogEntry]) -> [(key: String, value: [ClassLogEntry])] {
+        var dict: [String: [ClassLogEntry]] = [:]
+        for entry in entries {
+            let week = Calendar.current.dateComponents([.weekOfYear, .year], from: entry.date)
+            let key = "Week \(week.weekOfYear ?? 0), \(week.year ?? 0)"
+            dict[key, default: []].append(entry)
+        }
+        return dict.sorted { $0.key > $1.key }
+    }
+}
+
+// MARK: - Progress Card
+private struct ProgressCard: View {
+    let type: LogType
+    let hours: Double
+    let goal: Double
+    let remaining: Double
+    let weeklyTarget: Double
+    
+    private var progress: Double {
+        goal > 0 ? hours / goal : 0
+    }
+    
+    private var isOnTrack: Bool {
+        progress >= 0.5
+    }
+    
+    private var typeColor: Color {
+        switch type {
+        case .practice: Theme.sage
+        case .observation: Theme.clay
+        case .teaching: Theme.gold
+        }
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(type.rawValue.capitalized)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(typeColor)
+                
+                HStack(spacing: 4) {
+                    Text("\(String(format: "%.1f", hours)) h")
+                        .font(.caption.weight(.semibold))
+                    Text("of \(String(format: "%.1f", goal)) h")
+                        .font(.caption)
+                        .foregroundStyle(Theme.brown.opacity(0.6))
+                }
+                
+                HStack(spacing: 8) {
+                    Text(isOnTrack ? "On track" : "Behind")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(isOnTrack ? Theme.sage : Theme.clay)
+                    
+                    Text("~\(String(format: "%.1f", weeklyTarget)) h/week")
+                        .font(.caption2)
+                        .foregroundStyle(Theme.brown.opacity(0.6))
+                }
+            }
+            
+            Spacer()
+            
+            TimerRing(progress: min(1.0, progress), lineWidth: 10, track: typeColor.opacity(0.2), tint: typeColor)
+                .frame(width: 70, height: 70)
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(typeColor.opacity(0.3), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Session Log Cell
+private struct SessionLogCell: View {
+    let entry: ClassLogEntry
+    let studentStore: StudentStore
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    
+    private var typeColor: Color {
+        switch entry.type {
+        case .practice: Theme.sage
+        case .observation: Theme.clay
+        case .teaching: Theme.gold
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        Text(entry.className)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.berry)
+                        
+                        Chip(text: entry.type.rawValue.capitalized, tint: typeColor)
+                        
+                        Spacer()
+                        
+                        Text("\(String(format: "%.2f", entry.hours)) h")
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(typeColor)
+                    }
+                    
+                    HStack(spacing: 12) {
+                        Text(entry.date, style: .date)
+                            .font(.caption)
+                            .foregroundStyle(Theme.brown.opacity(0.6))
+                        
+                        if let place = entry.place {
+                            Chip(text: place, tint: Theme.petal)
+                        }
+                    }
+                    
+                    if let note = entry.note {
+                        Text(note)
+                            .font(.caption)
+                            .foregroundStyle(Theme.brown.opacity(0.7))
+                            .italic()
+                    }
+                    
+                    if let studentIds = entry.studentIds, !studentIds.isEmpty {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.2.fill")
+                                .font(.caption2)
+                                .foregroundStyle(Theme.rose)
+                            Text(studentIds.map { studentStore.studentName(for: $0) }.joined(separator: ", "))
+                                .font(.caption2)
+                                .foregroundStyle(Theme.brown.opacity(0.7))
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                Menu {
+                    Button(action: onEdit) {
+                        Label("Edit", systemImage: "pencil")
+                    }
+                    Button(role: .destructive, action: onDelete) {
+                        Label("Delete", systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle.fill")
+                        .foregroundStyle(Theme.petal)
+                }
+            }
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(10)
+    }
+}
+
+// MARK: - Weekly Plan View
+private struct WeeklyPlanView: View {
+    let weeklyPracticeTarget: Double
+    let weeklyObservationTarget: Double
+    let weeklyTeachingTarget: Double
+    
+    @State private var planNotes = ""
+    @State private var showSaveConfirmation = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("WEEKLY PLAN")
+                        .font(.caption.weight(.bold))
+                        .tracking(2)
+                        .foregroundStyle(Theme.gold)
+                    Text("Targets and notes for this week")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.brown.opacity(0.8))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(20)
+                .background(Theme.blush)
+                
+                VStack(spacing: 16) {
+                    // Weekly targets display
+                    VStack(spacing: 12) {
+                        Text("Weekly Targets")
+                            .font(.headline)
+                            .foregroundStyle(Theme.berry)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Practice").font(.caption.weight(.bold)).foregroundStyle(Theme.sage)
+                                Text("\(String(format: "%.1f", weeklyPracticeTarget)) hours").font(.subheadline.weight(.semibold))
+                                Text("Mat + home work").font(.caption2).foregroundStyle(Theme.brown.opacity(0.6))
+                            }
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(Theme.sage.opacity(0.1))
+                        .cornerRadius(8)
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Observation").font(.caption.weight(.bold)).foregroundStyle(Theme.clay)
+                                Text("\(String(format: "%.1f", weeklyObservationTarget)) hours").font(.subheadline.weight(.semibold))
+                                Text("The Mat, Ergo Body, Everbalance, Club Pilates VC").font(.caption2).foregroundStyle(Theme.brown.opacity(0.6))
+                            }
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(Theme.clay.opacity(0.1))
+                        .cornerRadius(8)
+                        
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Teaching").font(.caption.weight(.bold)).foregroundStyle(Theme.gold)
+                                Text("\(String(format: "%.1f", weeklyTeachingTarget)) hours").font(.subheadline.weight(.semibold))
+                                Text("Coworker sessions (30 min each)").font(.caption2).foregroundStyle(Theme.brown.opacity(0.6))
+                            }
+                            Spacer()
+                        }
+                        .padding(12)
+                        .background(Theme.gold.opacity(0.1))
+                        .cornerRadius(8)
+                    }
+                    
+                    // Editable plan notes
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notes")
+                            .font(.headline)
+                            .foregroundStyle(Theme.berry)
+                        
+                        TextEditor(text: $planNotes)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown)
+                            .frame(height: 120)
+                            .padding(12)
+                            .background(Color.white)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Theme.petal.opacity(0.3), lineWidth: 1)
+                            )
+                        
+                        Button(action: { showSaveConfirmation = true }) {
+                            Text("Save Plan")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(12)
+                                .background(Theme.rose)
+                                .cornerRadius(10)
+                        }
+                    }
+                }
+                .padding(20)
+            }
         }
         .background(Theme.background.ignoresSafeArea())
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Export CSV") {
-                    exportURL = logStore.exportCSV()
-                    showShare = exportURL != nil
+        .alert("Plan saved", isPresented: $showSaveConfirmation) {
+            Button("OK") { }
+        } message: {
+            Text("Your weekly plan has been saved.")
+        }
+    }
+}
+
+// MARK: - Log Session Form
+private struct LogSessionForm: View {
+    @Environment(\.dismiss) var dismiss
+    let logStore: LogStore
+    let studentStore: StudentStore
+    @Binding var editingEntry: ClassLogEntry?
+    
+    @State private var date = Date()
+    @State private var type: LogType = .practice
+    @State private var hours: Double = 0.5
+    @State private var className = ""
+    @State private var place = ""
+    @State private var selectedStudentIds: [UUID] = []
+    @State private var note = ""
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Session Details") {
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                        .tint(Theme.rose)
+                    
+                    Picker("Type", selection: $type) {
+                        ForEach(LogType.allCases, id: \.self) { t in
+                            Text(t.rawValue.capitalized).tag(t)
+                        }
+                    }
+                    .tint(Theme.rose)
+                    
+                    TextField("Class name", text: $className)
+                    
+                    TextField("Place (studio, location, or 'home')", text: $place)
+                }
+                
+                Section("Duration") {
+                    HStack {
+                        Text("Hours")
+                        Spacer()
+                        Menu {
+                            ForEach(Array(stride(from: 0.25, through: 8.0, by: 0.25)), id: \.self) { h in
+                                Button("\(String(format: "%.2f", h)) h") { hours = h }
+                            }
+                        } label: {
+                            Text("\(String(format: "%.2f", hours)) h")
+                                .foregroundStyle(Theme.rose)
+                                .fontWeight(.semibold)
+                        }
+                    }
+                }
+                
+                if type == .teaching {
+                    Section("Students Taught") {
+                        List(studentStore.students, id: \.id) { student in
+                            HStack {
+                                Text(student.name)
+                                Spacer()
+                                if selectedStudentIds.contains(student.id) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Theme.rose)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if let idx = selectedStudentIds.firstIndex(of: student.id) {
+                                    selectedStudentIds.remove(at: idx)
+                                } else {
+                                    selectedStudentIds.append(student.id)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Section("Notes") {
+                    TextEditor(text: $note)
+                        .frame(height: 80)
+                }
+                
+                Section {
+                    Button(action: saveEntry) {
+                        Text("Save Session")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Theme.rose)
+                    }
+                    .listRowInsets(.none)
+                    .buttonStyle(.plain)
                 }
             }
-        }
-        .sheet(isPresented: $showShare) {
-            if let exportURL {
-                ShareSheet(activityItems: [exportURL])
+            .navigationTitle("Log Session")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
             }
+            .preferredColorScheme(.light)
         }
     }
-
-    private func tint(for type: LogType) -> Color {
-        switch type {
-        case .practice: return Theme.rose
-        case .observation: return Theme.gold
-        case .teaching: return Theme.berry
-        }
+    
+    private func saveEntry() {
+        let entry = ClassLogEntry(
+            date: date,
+            type: type,
+            hours: hours,
+            className: className,
+            sourceDevice: "iPhone",
+            place: place.isEmpty ? nil : place,
+            studentIds: selectedStudentIds.isEmpty ? nil : selectedStudentIds,
+            note: note.isEmpty ? nil : note
+        )
+        logStore.add(entry)
+        dismiss()
     }
 }
 
-private struct GoalCard: View {
-    let label: String
-    let current: Double
-    let goal: Double
-    let tint: Color
-
-    var body: some View {
-        VStack(spacing: 8) {
-            ZStack {
-                TimerRing(progress: current / goal, lineWidth: 8, track: tint.opacity(0.15), tint: tint)
-                Text(String(format: "%.1f", current))
-                    .font(.headline.monospacedDigit())
-                    .foregroundStyle(Theme.berry)
-            }
-            .frame(width: 70, height: 70)
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(Theme.brown)
-            Text("of \(Int(goal)) h").font(.caption2).foregroundStyle(Theme.brown.opacity(0.6))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 14)
-        .background(Theme.cream, in: RoundedRectangle(cornerRadius: 18))
-    }
-}
+// MARK: - Hours
 
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]

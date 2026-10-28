@@ -190,3 +190,111 @@ enum ClassAlerts {
         total > tenMinutes && old > tenMinutes && new <= tenMinutes && new > 0
     }
 }
+
+// MARK: - Student Model
+struct Student: Codable, Identifiable, Hashable {
+    var id: UUID
+    var name: String
+    var contact: String?
+    var injuries: String?
+    var goals: String?
+    var notes: String?
+
+    init(id: UUID = UUID(), name: String, contact: String? = nil, injuries: String? = nil, goals: String? = nil, notes: String? = nil) {
+        self.id = id
+        self.name = name
+        self.contact = contact
+        self.injuries = injuries
+        self.goals = goals
+        self.notes = notes
+    }
+}
+
+// MARK: - CourseModule Model
+struct CourseModule: Codable, Identifiable, Hashable {
+    var id: String
+    var title: String
+    var done: Bool
+    var completedDate: Date?
+    var notes: String?
+
+    init(id: String, title: String, done: Bool = false, completedDate: Date? = nil, notes: String? = nil) {
+        self.id = id
+        self.title = title
+        self.done = done
+        self.completedDate = completedDate
+        self.notes = notes
+    }
+}
+
+enum CourseModuleSet {
+    static let standard: [CourseModule] = [
+        CourseModule(id: "s01", title: "Principles of Movement"),
+        CourseModule(id: "s02", title: "Basic Mat Work"),
+        CourseModule(id: "s03", title: "Breathing Techniques"),
+        CourseModule(id: "s04", title: "Core Engagement"),
+        CourseModule(id: "s05", title: "Flow & Transitions"),
+        CourseModule(id: "s06", title: "Modifications & Progressions"),
+        CourseModule(id: "s07", title: "Class Structure & Cueing"),
+        CourseModule(id: "s08", title: "Common Injuries & Adaptations"),
+        CourseModule(id: "s09", title: "Music & Pacing"),
+        CourseModule(id: "s10", title: "Teaching Strategies"),
+        CourseModule(id: "theoretical", title: "Theoretical Exam (50 questions, 60 min, pass 40)"),
+        CourseModule(id: "practical", title: "Practical Assessment"),
+    ]
+}
+
+// MARK: - Exercise Area & LibraryMove
+enum ExerciseArea: String, Codable, CaseIterable {
+    case warmup = "warm-up"
+    case arms
+    case glutes
+    case core
+    case stretch
+
+    var label: String {
+        switch self {
+        case .warmup: "Warm-Up"
+        case .arms: "Arms"
+        case .glutes: "Glutes"
+        case .core: "Core"
+        case .stretch: "Stretch"
+        }
+    }
+}
+
+struct LibraryMove: Codable, Identifiable, Hashable {
+    var id: UUID
+    var name: String
+    var area: ExerciseArea
+    var props: [String]
+    var reps: String
+    var seconds: Int
+    var cue: String
+    var buildingBlock: String
+    var modification: String
+
+    init(id: UUID = UUID(), name: String, area: ExerciseArea, props: [String] = [], reps: String = "", seconds: Int = 0, cue: String, buildingBlock: String, modification: String) {
+        self.id = id
+        self.name = name
+        self.area = area
+        self.props = props
+        self.reps = reps
+        self.seconds = seconds
+        self.cue = cue
+        self.buildingBlock = buildingBlock
+        self.modification = modification
+    }
+}
+
+enum LibraryMoveSet {
+    static let levelIMat: [LibraryMove] = [
+        LibraryMove(name: "The Hundred", area: .warmup, reps: "100 pumps", cue: "Pump your arms while breathing in for 5 counts, out for 5.", buildingBlock: "Chest lift with pumping arms.", modification: "Feet on mat or knees bent."),
+        LibraryMove(name: "Roll Up", area: .stretch, reps: "3-5x", cue: "Articulate one vertebra at a time, stacking up with control.", buildingBlock: "Peel the spine off the mat.", modification: "Bend knees or use a hold on the back of the thighs."),
+        LibraryMove(name: "Single Leg Circles", area: .core, reps: "5-10x", cue: "Keep your hips stable and circle only from the hip.", buildingBlock: "Stable pelvis while one leg circles.", modification: "Smaller circles or hand under glutes for support."),
+        LibraryMove(name: "Rolling Like a Ball", area: .core, reps: "5-10 sets", cue: "Move as one unit, holding behind the thighs with control.", buildingBlock: "Imprint and roll massage the spine.", modification: "Small rolls or stay in the ball position."),
+        LibraryMove(name: "Single Leg Stretch", area: .core, reps: "5-10x", cue: "Lengthen the bottom leg while drawing the knee toward the chest.", buildingBlock: "Crunch position with alternating pulls.", modification: "Hands behind the head or smaller range."),
+        LibraryMove(name: "Double Leg Stretch", area: .core, reps: "3-5x", cue: "Circle the arms as you extend the legs, then gather back in.", buildingBlock: "Both legs extend while arms circle.", modification: "Feet remain on mat or smaller range."),
+        LibraryMove(name: "Spine Stretch Forward", area: .stretch, reps: "3-5x", cue: "Flex the spine and fold forward with a long spine.", buildingBlock: "Seated flexion, stacking vertebrae.", modification: "Bent knees or hands on thighs."),
+    ]
+}

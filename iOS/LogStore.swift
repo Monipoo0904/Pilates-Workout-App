@@ -37,6 +37,11 @@ final class LogStore: ObservableObject {
         logs.filter { $0.type == type }.reduce(0) { $0 + $1.hours }
     }
 
+    func delete(_ entry: ClassLogEntry) {
+        logs.removeAll { $0.id == entry.id }
+        save()
+    }
+
     func exportCSV() -> URL? {
         var csv = "date,type,hours,class name\n"
         let formatter = ISO8601DateFormatter()
