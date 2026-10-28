@@ -15,15 +15,17 @@ final class WatchClassStore: ObservableObject {
     func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? JSONDecoder().decode([PilatesClass].self, from: data) else {
-            classes = [SampleData.starterClass]
+            classes = SampleData.builtIns
             save()
             return
         }
-        classes = decoded.isEmpty ? [SampleData.starterClass] : decoded
+        let merged = SampleData.mergingBuiltIns(into: decoded)
+        classes = merged
+        if merged.count != decoded.count { save() }
     }
 
     func replaceAll(_ values: [PilatesClass]) {
-        classes = values.isEmpty ? [SampleData.starterClass] : values
+        classes = values.isEmpty ? SampleData.builtIns : values
         save()
     }
 

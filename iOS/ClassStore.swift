@@ -1,6 +1,7 @@
 // xcode: set sdk=iOS
 
 import Foundation
+import Combine
 
 @MainActor
 final class ClassStore: ObservableObject {
@@ -19,11 +20,13 @@ final class ClassStore: ObservableObject {
     func load() {
         guard let data = try? Data(contentsOf: fileURL),
               let decoded = try? decoder.decode([PilatesClass].self, from: data) else {
-            classes = [SampleData.starterClass]
+            classes = SampleData.builtIns
             save()
             return
         }
-        classes = decoded.isEmpty ? [SampleData.starterClass] : decoded
+        let merged = SampleData.mergingBuiltIns(into: decoded)
+        classes = merged
+        if merged.count != decoded.count { save() }
     }
 
     func save() {
@@ -36,10 +39,14 @@ final class ClassStore: ObservableObject {
     }
 
     func addOrReplace(_ classValue: PilatesClass) {
-        if let index = classes.firstIndex(where: { $0.id == classValue.id }) {
-            classes[index] = classValue
+        let normalized = classValue.reorderedBySeries()
+        if let index = classes.firstIndex(where: { $0.id == normalized.id }) {
+            classes[index] = normalized
         } else {
-            classes.append(classValue)
+            classes.append(normalized)
+        }
+        classes.sort { lhs, rhs in
+            lhs.name.lowercased() < rhs.name.lowercased()
         }
         save()
     }

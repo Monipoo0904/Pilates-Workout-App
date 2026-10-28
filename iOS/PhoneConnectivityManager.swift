@@ -1,10 +1,15 @@
 import Foundation
+import Combine
+import HealthKit
 import WatchConnectivity
 
 @MainActor
 final class PhoneConnectivityManager: NSObject, ObservableObject {
     @Published var syncStatus: String = "Not synced yet"
+    @Published var watchStatus: String = ""
     @Published var latestWatchLogs: [ClassLogEntry] = []
+
+    private let healthStore = HKHealthStore()
 
     override init() {
         super.init()
@@ -28,6 +33,48 @@ final class PhoneConnectivityManager: NSObject, ObservableObject {
             syncStatus = "Sync failed: \(error.localizedDescription)"
         }
     }
+
+    /// Opens Pilates Timer on the paired Apple Watch and starts the same class there.
+    func startClassOnWatch(_ plan: PilatesClass) {
+        guard WCSession.isSupported(), WCSession.default.activationState == .activated else {
+            watchStatus = "Apple Watch not connected"
+            return
+        }
+        guard WCSession.default.isPaired, WCSession.default.isWatchAppInstalled else {
+            watchStatus = "Install Pilates Timer on your Apple Watch"
+            return
+        }
+
+        // 1. Wake the watch app with a Pilates workout (needs the HealthKit capability).
+        if HKHealthStore.isHealthDataAvailable() {
+            let config = HKWorkoutConfiguration()
+            config.activityType = .pilates
+            config.locationType = .unknown
+            healthStore.startWatchApp(with: config) { success, _ in
+                if !success {
+                    Task { @MainActor in
+                        self.watchStatus = "Open Pilates Timer on your watch to follow along"
+                    }
+                }
+            }
+        }
+
+        // 2. Tell the watch which class to run.
+        guard let data = try? JSONEncoder().encode(plan) else { return }
+        let payload: [String: Any] = [
+            "command": "startClass",
+            "classData": data,
+            "sentAt": Date().timeIntervalSince1970
+        ]
+        if WCSession.default.isReachable {
+            WCSession.default.sendMessage(payload, replyHandler: nil) { _ in
+                WCSession.default.transferUserInfo(payload)
+            }
+        } else {
+            WCSession.default.transferUserInfo(payload)
+        }
+        watchStatus = "Starting on your Apple Watch…"
+    }
 }
 
 extension PhoneConnectivityManager: WCSessionDelegate {
@@ -40,6 +87,13 @@ extension PhoneConnectivityManager: WCSessionDelegate {
               let entries = try? JSONDecoder().decode([ClassLogEntry].self, from: data) else { return }
         Task { @MainActor in
             self.latestWatchLogs = entries
+        }
+    }
+
+    nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
+        guard message["event"] as? String == "classStarted" else { return }
+        Task { @MainActor in
+            self.watchStatus = "Running on your Apple Watch"
         }
     }
 }

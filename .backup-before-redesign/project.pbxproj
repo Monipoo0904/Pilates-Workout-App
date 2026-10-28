@@ -1,0 +1,602 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 90;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FD6015EB309118EB00D0FD88 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E0309118EB00D0FD88 /* SampleData.swift */; };
+		FD6015EE309118EB00D0FD88 /* LogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DD309118EB00D0FD88 /* LogModels.swift */; };
+		FD6015EF309118EB00D0FD88 /* PilatesModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DE309118EB00D0FD88 /* PilatesModels.swift */; };
+		FD6015F0309118EB00D0FD88 /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E1309118EB00D0FD88 /* TimerEngine.swift */; };
+		FD6015F4309118EB00D0FD88 /* PhoneConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DA309118EB00D0FD88 /* PhoneConnectivityManager.swift */; platformFilter = ios; };
+		FD6015F5309118EB00D0FD88 /* LogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015D9309118EB00D0FD88 /* LogStore.swift */; platformFilter = ios; };
+		FD6015F6309118EB00D0FD88 /* RunSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DF309118EB00D0FD88 /* RunSessionController.swift */; };
+		FD6015F7309118EB00D0FD88 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015D8309118EB00D0FD88 /* ContentView.swift */; platformFilter = ios; };
+		FD6015F9309118EB00D0FD88 /* PilatesTimerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DB309118EB00D0FD88 /* PilatesTimerApp.swift */; platformFilter = ios; };
+		FD60160830911A7800D0FD88 /* PilatesTimerWatchApp Watch App.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = FD6015FE30911A7600D0FD88 /* PilatesTimerWatchApp Watch App.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FD60160D30911B0000D0FD88 /* PilatesTimerWatchApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E3309118EB00D0FD88 /* PilatesTimerWatchApp.swift */; };
+		FD60160E30911B8300D0FD88 /* WatchContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E6309118EB00D0FD88 /* WatchContentView.swift */; };
+		FD60160F30911CCE00D0FD88 /* ClassStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015D7309118EB00D0FD88 /* ClassStore.swift */; };
+		FD60161030911D1800D0FD88 /* WatchConnectivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E5309118EB00D0FD88 /* WatchConnectivityManager.swift */; };
+		FD60161130911D2300D0FD88 /* WatchLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E7309118EB00D0FD88 /* WatchLogStore.swift */; };
+		FD60161230911D2900D0FD88 /* WorkoutSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E8309118EB00D0FD88 /* WorkoutSessionManager.swift */; };
+		FD60161330911D3600D0FD88 /* WatchClassStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E4309118EB00D0FD88 /* WatchClassStore.swift */; };
+		FD60161430911D4200D0FD88 /* LogModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DD309118EB00D0FD88 /* LogModels.swift */; };
+		FD60161530911D4700D0FD88 /* PilatesModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DE309118EB00D0FD88 /* PilatesModels.swift */; };
+		FD60161630911D4D00D0FD88 /* RunSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015DF309118EB00D0FD88 /* RunSessionController.swift */; };
+		FD60161730911D5200D0FD88 /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E0309118EB00D0FD88 /* SampleData.swift */; };
+		FD60161830911D5600D0FD88 /* TimerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD6015E1309118EB00D0FD88 /* TimerEngine.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FD60160630911A7800D0FD88 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 000000000000000000000000 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FD6015FD30911A7600D0FD88;
+			remoteInfo = "PilatesTimerWatchApp Watch App";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FD60160C30911A7800D0FD88 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolder = Product;
+			files = (
+				FD60160830911A7800D0FD88 /* PilatesTimerWatchApp Watch App.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		000000000000000000000120 /* PilatesTimerProject.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PilatesTimerProject.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FD6015D7309118EB00D0FD88 /* ClassStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClassStore.swift; sourceTree = "<group>"; };
+		FD6015D8309118EB00D0FD88 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		FD6015D9309118EB00D0FD88 /* LogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStore.swift; sourceTree = "<group>"; };
+		FD6015DA309118EB00D0FD88 /* PhoneConnectivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneConnectivityManager.swift; sourceTree = "<group>"; };
+		FD6015DB309118EB00D0FD88 /* PilatesTimerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PilatesTimerApp.swift; sourceTree = "<group>"; };
+		FD6015DD309118EB00D0FD88 /* LogModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogModels.swift; sourceTree = "<group>"; };
+		FD6015DE309118EB00D0FD88 /* PilatesModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PilatesModels.swift; sourceTree = "<group>"; };
+		FD6015DF309118EB00D0FD88 /* RunSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunSessionController.swift; sourceTree = "<group>"; };
+		FD6015E0309118EB00D0FD88 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		FD6015E1309118EB00D0FD88 /* TimerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerEngine.swift; sourceTree = "<group>"; };
+		FD6015E3309118EB00D0FD88 /* PilatesTimerWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PilatesTimerWatchApp.swift; sourceTree = "<group>"; };
+		FD6015E4309118EB00D0FD88 /* WatchClassStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchClassStore.swift; sourceTree = "<group>"; };
+		FD6015E5309118EB00D0FD88 /* WatchConnectivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchConnectivityManager.swift; sourceTree = "<group>"; };
+		FD6015E6309118EB00D0FD88 /* WatchContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchContentView.swift; sourceTree = "<group>"; };
+		FD6015E7309118EB00D0FD88 /* WatchLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLogStore.swift; sourceTree = "<group>"; };
+		FD6015E8309118EB00D0FD88 /* WorkoutSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSessionManager.swift; sourceTree = "<group>"; };
+		FD6015FE30911A7600D0FD88 /* PilatesTimerWatchApp Watch App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PilatesTimerWatchApp Watch App.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		000000000000000000000010 /* PilatesTimerProject */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = PilatesTimerProject;
+			sourceTree = "<group>";
+		};
+		FD6015FF30911A7600D0FD88 /* PilatesTimerWatchApp Watch App */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "PilatesTimerWatchApp Watch App";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		000000000000000130000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		FD6015FB30911A7600D0FD88 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				FD6015DC309118EB00D0FD88 /* iOS */,
+				FD6015E2309118EB00D0FD88 /* Shared */,
+				FD6015E9309118EB00D0FD88 /* watchOS */,
+				000000000000000000000010 /* PilatesTimerProject */,
+				FD6015FF30911A7600D0FD88 /* PilatesTimerWatchApp Watch App */,
+				000000000000000000000020 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		000000000000000000000020 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				000000000000000000000120 /* PilatesTimerProject.app */,
+				FD6015FE30911A7600D0FD88 /* PilatesTimerWatchApp Watch App.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FD6015DC309118EB00D0FD88 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				FD6015D7309118EB00D0FD88 /* ClassStore.swift */,
+				FD6015D8309118EB00D0FD88 /* ContentView.swift */,
+				FD6015D9309118EB00D0FD88 /* LogStore.swift */,
+				FD6015DA309118EB00D0FD88 /* PhoneConnectivityManager.swift */,
+				FD6015DB309118EB00D0FD88 /* PilatesTimerApp.swift */,
+			);
+			path = iOS;
+			sourceTree = "<group>";
+		};
+		FD6015E2309118EB00D0FD88 /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				FD6015DD309118EB00D0FD88 /* LogModels.swift */,
+				FD6015DE309118EB00D0FD88 /* PilatesModels.swift */,
+				FD6015DF309118EB00D0FD88 /* RunSessionController.swift */,
+				FD6015E0309118EB00D0FD88 /* SampleData.swift */,
+				FD6015E1309118EB00D0FD88 /* TimerEngine.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		FD6015E9309118EB00D0FD88 /* watchOS */ = {
+			isa = PBXGroup;
+			children = (
+				FD6015E3309118EB00D0FD88 /* PilatesTimerWatchApp.swift */,
+				FD6015E4309118EB00D0FD88 /* WatchClassStore.swift */,
+				FD6015E5309118EB00D0FD88 /* WatchConnectivityManager.swift */,
+				FD6015E6309118EB00D0FD88 /* WatchContentView.swift */,
+				FD6015E7309118EB00D0FD88 /* WatchLogStore.swift */,
+				FD6015E8309118EB00D0FD88 /* WorkoutSessionManager.swift */,
+			);
+			path = watchOS;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		000000000000000100000000 /* PilatesTimerProject */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000110000000 /* Build configuration list for PBXNativeTarget "PilatesTimerProject" */;
+			buildPhases = (
+				000000000000000120000000 /* Sources */,
+				000000000000000130000000 /* Frameworks */,
+				000000000000000140000000 /* Resources */,
+				FD60160C30911A7800D0FD88 /* Embed Watch Content */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FD60160730911A7800D0FD88 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				000000000000000000000010 /* PilatesTimerProject */,
+			);
+			name = PilatesTimerProject;
+			productName = MyApp;
+			productReference = 000000000000000000000120 /* PilatesTimerProject.app */;
+			productType = "com.apple.product-type.application";
+		};
+		FD6015FD30911A7600D0FD88 /* PilatesTimerWatchApp Watch App */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FD60160930911A7800D0FD88 /* Build configuration list for PBXNativeTarget "PilatesTimerWatchApp Watch App" */;
+			buildPhases = (
+				FD6015FA30911A7600D0FD88 /* Sources */,
+				FD6015FB30911A7600D0FD88 /* Frameworks */,
+				FD6015FC30911A7600D0FD88 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				FD6015FF30911A7600D0FD88 /* PilatesTimerWatchApp Watch App */,
+			);
+			name = "PilatesTimerWatchApp Watch App";
+			productName = "PilatesTimerWatchApp Watch App";
+			productReference = FD6015FE30911A7600D0FD88 /* PilatesTimerWatchApp Watch App.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2710;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					000000000000000100000000 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					FD6015FD30911A7600D0FD88 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+				};
+			};
+			buildConfigurationList = 000000000000000010000000 /* Build configuration list for PBXProject "PilatesTimerProject" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 000000000000000000000001;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 90;
+			productRefGroup = 000000000000000000000020 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				000000000000000100000000 /* PilatesTimerProject */,
+				FD6015FD30911A7600D0FD88 /* PilatesTimerWatchApp Watch App */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		000000000000000140000000 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		FD6015FC30911A7600D0FD88 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		000000000000000120000000 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				FD6015EB309118EB00D0FD88 /* SampleData.swift in Sources */,
+				FD6015EE309118EB00D0FD88 /* LogModels.swift in Sources */,
+				FD6015EF309118EB00D0FD88 /* PilatesModels.swift in Sources */,
+				FD6015F0309118EB00D0FD88 /* TimerEngine.swift in Sources */,
+				FD6015F4309118EB00D0FD88 /* PhoneConnectivityManager.swift in Sources */,
+				FD6015F5309118EB00D0FD88 /* LogStore.swift in Sources */,
+				FD6015F6309118EB00D0FD88 /* RunSessionController.swift in Sources */,
+				FD6015F7309118EB00D0FD88 /* ContentView.swift in Sources */,
+				FD60160F30911CCE00D0FD88 /* ClassStore.swift in Sources */,
+				FD6015F9309118EB00D0FD88 /* PilatesTimerApp.swift in Sources */,
+			);
+		};
+		FD6015FA30911A7600D0FD88 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+				FD60161630911D4D00D0FD88 /* RunSessionController.swift in Sources */,
+				FD60160D30911B0000D0FD88 /* PilatesTimerWatchApp.swift in Sources */,
+				FD60161430911D4200D0FD88 /* LogModels.swift in Sources */,
+				FD60161530911D4700D0FD88 /* PilatesModels.swift in Sources */,
+				FD60161330911D3600D0FD88 /* WatchClassStore.swift in Sources */,
+				FD60160E30911B8300D0FD88 /* WatchContentView.swift in Sources */,
+				FD60161730911D5200D0FD88 /* SampleData.swift in Sources */,
+				FD60161130911D2300D0FD88 /* WatchLogStore.swift in Sources */,
+				FD60161030911D1800D0FD88 /* WatchConnectivityManager.swift in Sources */,
+				FD60161230911D2900D0FD88 /* WorkoutSessionManager.swift in Sources */,
+				FD60161830911D5600D0FD88 /* TimerEngine.swift in Sources */,
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FD60160730911A7800D0FD88 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FD6015FD30911A7600D0FD88 /* PilatesTimerWatchApp Watch App */;
+			targetProxy = FD60160630911A7800D0FD88 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000011000000 /* Debug configuration for PBXProject "PilatesTimerProject" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DRIVERKIT_DEPLOYMENT_TARGET = 27.0;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.6.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PROJECT_UNIQUE_VALUE = ELURDUPI;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Debug;
+		};
+		000000000000000012000000 /* Release configuration for PBXProject "PilatesTimerProject" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEAD_CODE_STRIPPING = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DRIVERKIT_DEPLOYMENT_TARGET = 27.0;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.6.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PROJECT_UNIQUE_VALUE = ELURDUPI;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				TVOS_DEPLOYMENT_TARGET = 27.0;
+				WATCHOS_DEPLOYMENT_TARGET = 27.0;
+				XROS_DEPLOYMENT_TARGET = 27.0;
+			};
+			name = Release;
+		};
+		000000000000000111000000 /* Debug configuration for PBXNativeTarget "PilatesTimerProject" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NMRX2NAJW8;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+			};
+			name = Debug;
+		};
+		000000000000000112000000 /* Release configuration for PBXNativeTarget "PilatesTimerProject" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NMRX2NAJW8;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
+				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
+				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
+				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = auto;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2,7";
+			};
+			name = Release;
+		};
+		FD60160A30911A7800D0FD88 /* Debug configuration for PBXNativeTarget "PilatesTimerWatchApp Watch App" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NMRX2NAJW8;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PilatesTimerWatchApp;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+			};
+			name = Debug;
+		};
+		FD60160B30911A7800D0FD88 /* Release configuration for PBXNativeTarget "PilatesTimerWatchApp Watch App" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = NMRX2NAJW8;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = PilatesTimerWatchApp;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject.watchkitapp;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000010000000 /* Build configuration list for PBXProject "PilatesTimerProject" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000011000000 /* Debug configuration for PBXProject "PilatesTimerProject" */,
+				000000000000000012000000 /* Release configuration for PBXProject "PilatesTimerProject" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		000000000000000110000000 /* Build configuration list for PBXNativeTarget "PilatesTimerProject" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000111000000 /* Debug configuration for PBXNativeTarget "PilatesTimerProject" */,
+				000000000000000112000000 /* Release configuration for PBXNativeTarget "PilatesTimerProject" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		FD60160930911A7800D0FD88 /* Build configuration list for PBXNativeTarget "PilatesTimerWatchApp Watch App" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD60160A30911A7800D0FD88 /* Debug configuration for PBXNativeTarget "PilatesTimerWatchApp Watch App" */,
+				FD60160B30911A7800D0FD88 /* Release configuration for PBXNativeTarget "PilatesTimerWatchApp Watch App" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000000000000000000000000 /* Project object */;
+}
