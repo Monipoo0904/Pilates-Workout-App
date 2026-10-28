@@ -1,0 +1,482 @@
+// MARK: - Class Builder (build and edit classes on the iPhone)
+
+// WHAT: How a builder starts: a blank class, the Level I mat template, or an existing class to edit.
+enum BuilderStart: Identifiable {
+    case blank
+    case levelI
+    case edit(PilatesClass)
+
+    var id: String {
+        switch self {
+        case .blank: "blank"
+        case .levelI: "levelI"
+        case .edit(let plan): "edit-\(plan.id)"
+        }
+    }
+}
+
+// WHAT: One move while you're building. The id lets the list drag, delete and edit the right row.
+struct DraftMove: Identifiable, Equatable {
+    let id = UUID()
+    var item: PilatesClassItem
+}
+
+// WHAT: The one class builder: name the class, add moves (from the Library or your own), set each move's time/reps/cues,
+//       drag to reorder, swipe to delete, then Save. Saving also sends the class to your Apple Watch.
+// TO CHANGE: Default time for a new move: defaultSeconds. Button text: the Label lines in "Add moves".
+struct ClassBuilderView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var classStore: ClassStore
+    @EnvironmentObject private var libraryStore: LibraryStore
+
+    let start: BuilderStart
+
+    @State private var name = ""
+    @State private var extraProps = "Mat"
+    @State private var sectionForNewMoves = ""
+    @State private var moves: [DraftMove] = []
+    @State private var editingMove: DraftMove?
+    @State private var showLibraryPicker = false
+    @State private var editMode: EditMode = .inactive
+    @State private var loaded = false
+
+    // TO CHANGE: how long a new move runs if the Library doesn't say (in seconds).
+    private let defaultSeconds = 60
+
+    private var editingClass: PilatesClass? {
+        if case .edit(let plan) = start { return plan }
+        return nil
+    }
+
+    private var totalSeconds: Int { moves.reduce(0) { $0 + $1.item.seconds } }
+
+    private var canSave: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !moves.isEmpty
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                // --- Class name and props
+                Section("Class") {
+                    TextField("Class name (e.g. Tuesday Core Flow)", text: $name)
+                        .font(.headline)
+                    TextField("Props to bring (comma separated)", text: $extraProps)
+                    HStack {
+                        Chip(text: "\(moves.count) moves")
+                        Chip(text: TimeFormat.mmss(totalSeconds) + " total", tint: Theme.gold)
+                    }
+                    .listRowSeparator(.hidden)
+                }
+
+                // --- The moves, in teaching order (top runs first)
+                Section {
+                    if moves.isEmpty {
+                        Text("No moves yet. Add some below.")
+                            .foregroundStyle(Theme.brown.opacity(0.6))
+                    }
+                    ForEach(Array(moves.enumerated()), id: \.element.id) { index, move in
+                        Button {
+                            editingMove = move
+                        } label: {
+                            BuilderMoveRow(
+                                number: index + 1,
+                                item: move.item,
+                                showSection: !move.item.section.isEmpty &&
+                                    (index == 0 || moves[index - 1].item.section != move.item.section)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .onMove { from, to in moves.move(fromOffsets: from, toOffset: to) }
+                    .onDelete { moves.remove(atOffsets: $0) }
+                } header: {
+                    HStack {
+                        Text("Moves in teaching order")
+                        Spacer()
+                        if !moves.isEmpty {
+                            Button(editMode == .active ? "Done" : "Reorder") {
+                                withAnimation { editMode = editMode == .active ? .inactive : .active }
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                            .textCase(nil)
+                        }
+                    }
+                } footer: {
+                    Text("Tap a move to change its time, reps or cues. Swipe left to delete. Tap Reorder to drag moves.")
+                }
+
+                // --- Adding moves (each button is in its own row so one tap = one action)
+                Section("Add moves") {
+                    TextField("Section for new moves (e.g. Warm-Up)", text: $sectionForNewMoves)
+                    Button {
+                        showLibraryPicker = true
+                    } label: {
+                        Label("Add from Library", systemImage: "books.vertical")
+                    }
+                    Button {
+                        let move = DraftMove(item: PilatesClassItem(
+                            section: sectionForNewMoves.trimmingCharacters(in: .whitespaces),
+                            name: "",
+                            seconds: defaultSeconds,
+                            modification: " "
+                        ))
+                        moves.append(move)
+                        editingMove = move
+                    } label: {
+                        Label("Write my own move", systemImage: "square.and.pencil")
+                    }
+                }
+                .foregroundStyle(Theme.rose)
+
+                // --- Save
+                Section {
+                    Button(action: save) {
+                        Text(editingClass == nil ? "Save class & send to watch" : "Save changes & send to watch")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(canSave ? Theme.rose : Theme.petal, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSave)
+                    .listRowBackground(Color.clear)
+                } footer: {
+                    if !canSave {
+                        Text("Give the class a name and at least one move to save.")
+                    }
+                }
+            }
+            .environment(\.editMode, $editMode)
+            .scrollContentBackground(.hidden)
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle(editingClass == nil ? "New class" : "Edit class")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save", action: save).disabled(!canSave)
+                }
+            }
+            // When the move editor closes, drop any "write my own" move that never got a name.
+            .sheet(item: $editingMove, onDismiss: {
+                moves.removeAll { $0.item.name.trimmingCharacters(in: .whitespaces).isEmpty }
+            }) { move in
+                MoveEditorView(move: move) { updated in
+                    if let i = moves.firstIndex(where: { $0.id == updated.id }) { moves[i] = updated }
+                } onDelete: {
+                    moves.removeAll { $0.id == move.id }
+                }
+            }
+            .sheet(isPresented: $showLibraryPicker) {
+                LibraryPickerView(moves: libraryStore.moves) { picked in
+                    let section = sectionForNewMoves.trimmingCharacters(in: .whitespaces)
+                    moves += picked.map { libraryMove in
+                        DraftMove(item: PilatesClassItem(
+                            section: section,
+                            name: libraryMove.name,
+                            reps: libraryMove.reps,
+                            seconds: libraryMove.seconds > 0 ? libraryMove.seconds : defaultSeconds,
+                            cue: libraryMove.cue,
+                            buildingBlock: libraryMove.buildingBlock,
+                            modification: libraryMove.modification.isEmpty ? " " : libraryMove.modification,
+                            props: libraryMove.props
+                        ))
+                    }
+                }
+            }
+            .onAppear(perform: loadStart)
+        }
+        .preferredColorScheme(.light)
+    }
+
+    // WHAT: fills the builder from the starting point (blank, Level I template, or the class being edited).
+    private func loadStart() {
+        guard !loaded else { return }
+        loaded = true
+        switch start {
+        case .blank:
+            break
+        case .levelI:
+            name = "Level I Mat"
+            moves = LevelIMatTemplate.exercises.map { DraftMove(item: $0) }
+        case .edit(let plan):
+            name = plan.name
+            extraProps = plan.props.joined(separator: ", ")
+            // Older classes saved a section heading as a blank "Untitled Exercise" move.
+            // Turn those back into section names for the moves after them, so they don't play as moves.
+            var carriedSection = ""
+            moves = plan.items.compactMap { item in
+                let blank = item.name.trimmingCharacters(in: .whitespaces).isEmpty || item.name == "Untitled Exercise"
+                if blank && item.reps.isEmpty && item.cue.isEmpty && item.buildingBlock.isEmpty {
+                    carriedSection = item.section
+                    return nil
+                }
+                var fixed = item
+                if fixed.section.isEmpty && !carriedSection.isEmpty { fixed.section = carriedSection }
+                return DraftMove(item: fixed)
+            }
+        }
+    }
+
+    // WHAT: saves the class (keeping the same class when editing) and closes the builder.
+    //       The class list notices the change and sends everything to the watch.
+    private func save() {
+        guard canSave else { return }
+        let items = moves.map { draft -> PilatesClassItem in
+            var item = draft.item
+            item.name = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if item.name.isEmpty { item.name = "Untitled move" }
+            item.modification = item.modification.trimmingCharacters(in: .whitespacesAndNewlines)
+            return item
+        }
+        // Props = what you typed + every prop the moves use (no duplicates).
+        var props: [String] = []
+        let typed = extraProps.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        for prop in typed + items.flatMap(\.props) where !prop.isEmpty {
+            if !props.contains(where: { $0.lowercased() == prop.lowercased() }) { props.append(prop) }
+        }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let plan = PilatesClass(
+            version: (editingClass?.version ?? 0) + 1,
+            id: editingClass?.id ?? UUID().uuidString,
+            name: trimmedName,
+            props: props,
+            items: items
+        )
+        classStore.addOrReplace(plan)
+        dismiss()
+    }
+}
+
+// WHAT: One row in the builder: number, move name, time, reps, and a section label when a new section starts.
+private struct BuilderMoveRow: View {
+    let number: Int
+    let item: PilatesClassItem
+    let showSection: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if showSection {
+                Text(item.section.uppercased())
+                    .font(.caption2.weight(.bold))
+                    .tracking(1.2)
+                    .foregroundStyle(Theme.gold)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("\(number)")
+                    .font(.caption.weight(.bold).monospacedDigit())
+                    .foregroundStyle(Theme.rose)
+                    .frame(width: 22, alignment: .trailing)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.name.isEmpty ? "New move" : item.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    Text([TimeFormat.mmss(item.seconds), item.reps].filter { !$0.isEmpty }.joined(separator: " · "))
+                        .font(.caption)
+                        .foregroundStyle(Theme.brown.opacity(0.7))
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Theme.petal)
+            }
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+// WHAT: Edit one move: section, name, time, reps, setup, cue, Building Block, Modification, transition, props.
+// TO CHANGE: time steps: the Stepper "step:" value (15 seconds). Longest move: the "in:" range (up to 30 min).
+private struct MoveEditorView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State var move: DraftMove
+    let onSave: (DraftMove) -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Move") {
+                    TextField("Move name", text: $move.item.name)
+                        .font(.headline)
+                    TextField("Section (e.g. Warm-Up, Mat flow)", text: $move.item.section)
+                    Stepper(value: $move.item.seconds, in: 0...1800, step: 15) {
+                        HStack {
+                            Text("Time")
+                            Spacer()
+                            Text(TimeFormat.mmss(move.item.seconds))
+                                .monospacedDigit()
+                                .foregroundStyle(Theme.rose)
+                        }
+                    }
+                    TextField("Reps (e.g. 6–8, 10 breaths)", text: $move.item.reps)
+                }
+                Section("Coaching notes (shown on the watch)") {
+                    TextField("Setup", text: $move.item.setup, axis: .vertical)
+                    TextField("Cue", text: $move.item.cue, axis: .vertical)
+                    TextField("Building Block", text: $move.item.buildingBlock, axis: .vertical)
+                    TextField("Modification", text: $move.item.modification, axis: .vertical)
+                    TextField("Transition to next move", text: $move.item.transition, axis: .vertical)
+                }
+                Section("Props for this move") {
+                    TextField("Comma separated (e.g. Pilates ball)", text: Binding(
+                        get: { move.item.props.joined(separator: ", ") },
+                        set: { move.item.props = $0.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) } }
+                    ))
+                }
+                Section {
+                    Button("Delete this move", role: .destructive) {
+                        onDelete()
+                        dismiss()
+                    }
+                }
+            }
+            .navigationTitle(move.item.name.isEmpty ? "New move" : move.item.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        move.item.props = move.item.props.filter { !$0.isEmpty }
+                        onSave(move)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .preferredColorScheme(.light)
+    }
+}
+
+// WHAT: Pick several Library moves at once. Filter by search, style, area and prop. Moves are added in the order you tap them.
+// TO CHANGE: filters: the three Menu pickers. Library moves themselves: Library tab, or moreStyles in Shared/LogModels.swift.
+private struct LibraryPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    let moves: [LibraryMove]
+    let onAdd: ([LibraryMove]) -> Void
+
+    @State private var search = ""
+    @State private var style: MoveStyle?
+    @State private var area: ExerciseArea?
+    @State private var prop: String?
+    @State private var picked: [UUID] = []
+
+    private var allProps: [String] {
+        var seen: [String] = []
+        for p in moves.flatMap(\.props) where !seen.contains(where: { $0.lowercased() == p.lowercased() }) {
+            seen.append(p)
+        }
+        return seen.sorted { $0.lowercased() < $1.lowercased() }
+    }
+
+    private var filtered: [LibraryMove] {
+        moves.filter { move in
+            (search.isEmpty || move.name.localizedCaseInsensitiveContains(search)) &&
+            (style == nil || move.style == style) &&
+            (area == nil || move.area == area) &&
+            (prop == nil || move.props.contains { $0.lowercased() == prop!.lowercased() })
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            Menu {
+                                Button("All styles") { style = nil }
+                                ForEach(MoveStyle.allCases, id: \.self) { s in Button(s.label) { style = s } }
+                            } label: { filterLabel(style?.label ?? "Style", active: style != nil) }
+                            Menu {
+                                Button("All areas") { area = nil }
+                                ForEach(ExerciseArea.allCases, id: \.self) { a in Button(a.label) { area = a } }
+                            } label: { filterLabel(area?.label ?? "Area", active: area != nil) }
+                            Menu {
+                                Button("Any props") { prop = nil }
+                                ForEach(allProps, id: \.self) { p in Button(p) { prop = p } }
+                            } label: { filterLabel(prop ?? "Props", active: prop != nil) }
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("\(filtered.count) moves") {
+                    if filtered.isEmpty {
+                        Text("No moves match. Try clearing a filter.")
+                            .foregroundStyle(Theme.brown.opacity(0.6))
+                    }
+                    ForEach(filtered) { move in
+                        Button {
+                            if let i = picked.firstIndex(of: move.id) { picked.remove(at: i) } else { picked.append(move.id) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(move.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(Theme.berry)
+                                    Text([move.style?.label ?? "My move", move.area.label, move.props.joined(separator: ", ")]
+                                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                                        .font(.caption)
+                                        .foregroundStyle(Theme.brown.opacity(0.7))
+                                }
+                                Spacer()
+                                if let n = picked.firstIndex(of: move.id) {
+                                    Text("\(n + 1)")
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .frame(width: 24, height: 24)
+                                        .background(Theme.rose, in: Circle())
+                                } else {
+                                    Image(systemName: "circle")
+                                        .foregroundStyle(Theme.petal)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .searchable(text: $search, prompt: "Search moves")
+            .scrollContentBackground(.hidden)
+            .background(Theme.background.ignoresSafeArea())
+            .navigationTitle("Add from Library")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(picked.isEmpty ? "Add" : "Add \(picked.count)") {
+                        let byId = Dictionary(moves.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+                        onAdd(picked.compactMap { byId[$0] })
+                        dismiss()
+                    }
+                    .disabled(picked.isEmpty)
+                }
+            }
+        }
+        .preferredColorScheme(.light)
+    }
+
+    private func filterLabel(_ text: String, active: Bool) -> some View {
+        HStack(spacing: 4) {
+            Text(text)
+            Image(systemName: "chevron.down").font(.caption2)
+        }
+        .font(.caption.weight(.semibold))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 7)
+        .background(active ? Theme.rose : Color.white, in: Capsule())
+        .foregroundStyle(active ? .white : Theme.berry)
+    }
+}
+

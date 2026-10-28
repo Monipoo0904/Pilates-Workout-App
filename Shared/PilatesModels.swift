@@ -195,6 +195,8 @@ struct PilatesClassItem: Codable, Hashable {
     var buildingBlock: String
     var modification: String
     var transition: String
+    /// Harder options for this move ("layer up"). Empty = use the built-in list (MoveLayers).
+    var layers: String
     var props: [String]
     var series: WorkoutSeries
 
@@ -208,6 +210,7 @@ struct PilatesClassItem: Codable, Hashable {
         buildingBlock: String = "",
         modification: String = "",
         transition: String = "",
+        layers: String = "",
         props: [String] = [],
         series: WorkoutSeries? = nil
     ) {
@@ -220,6 +223,7 @@ struct PilatesClassItem: Codable, Hashable {
         self.buildingBlock = buildingBlock
         self.modification = modification.isEmpty ? WorkoutSeries.infer(from: name, section: section).defaultModification : modification
         self.transition = transition
+        self.layers = layers
         self.props = props.compactMap { value in
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
@@ -239,6 +243,7 @@ struct PilatesClassItem: Codable, Hashable {
         let decodedModification = (try c.decodeIfPresent(String.self, forKey: .modification))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         modification = decodedModification.isEmpty ? WorkoutSeries.infer(from: name, section: section).defaultModification : decodedModification
         transition = (try c.decodeIfPresent(String.self, forKey: .transition))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        layers = (try c.decodeIfPresent(String.self, forKey: .layers))?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         props = (try c.decodeIfPresent([String].self, forKey: .props) ?? []).compactMap { value in
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed

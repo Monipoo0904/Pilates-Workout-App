@@ -390,6 +390,9 @@ private struct MoveCard: View {
             if !item.modification.isEmpty {
                 LabeledNote(title: "Modification", text: item.modification, icon: "exclamationmark.triangle.fill", color: Theme.clay)
             }
+            if !item.displayLayers.isEmpty {
+                LabeledNote(title: "Layer up", text: item.displayLayers, icon: "plus.square.on.square", color: Theme.berry)
+            }
             if !item.transition.isEmpty {
                 LabeledNote(title: "Transition", text: item.transition, icon: "arrow.turn.down.right", color: Theme.gold)
             }
@@ -1287,6 +1290,10 @@ enum BuilderStart: Identifiable {
 struct DraftMove: Identifiable, Equatable {
     let id = UUID()
     var item: PilatesClassItem
+    /// Taught one side at a time. Saved as two timed moves: "(right)" then "(left)".
+    var perSide = false
+    /// How many timed blocks this move plays (2 when done right and left).
+    var blocks: Int { perSide ? 2 : 1 }
 }
 
 // WHAT: The one class builder: name the class, add moves (from the Library or your own), set each move's time/reps/cues,
@@ -1317,7 +1324,7 @@ struct ClassBuilderView: View {
         return nil
     }
 
-    private var totalSeconds: Int { moves.reduce(0) { $0 + $1.item.seconds } }
+    private var totalSeconds: Int { moves.reduce(0) { $0 + $1.item.seconds * $1.blocks } }
     private var targetSeconds: Int { targetMinutes * 60 }
     /// e.g. "13:00 left to fill" or "2:30 over".
     private var fitText: String {
@@ -1364,6 +1371,12 @@ struct ClassBuilderView: View {
                     }
                     if !moves.isEmpty {
                         Button {
+                            withAnimation { arrangeForClass() }
+                        } label: {
+                            Label("Arrange in class order", systemImage: "list.number")
+                        }
+                        .foregroundStyle(Theme.rose)
+                        Button {
                             spreadEvenly()
                         } label: {
                             Label("Spread \(targetMinutes) min evenly across \(moves.count) moves", systemImage: "equal.circle")
@@ -1373,7 +1386,7 @@ struct ClassBuilderView: View {
                 } header: {
                     Text("Time")
                 } footer: {
-                    Text("Every move runs on time. Change one move's time by tapping it.")
+                    Text("Arrange in class order: warm-up stretches first, then each series together (standing, arms, core, glutes), cool-down stretches last. One-sided moves run on the right, then the same moves on the left. Every move runs on time.")
                 }
 
                 // --- The moves, in teaching order (top runs first)
@@ -1389,6 +1402,7 @@ struct ClassBuilderView: View {
                             BuilderMoveRow(
                                 number: index + 1,
                                 item: move.item,
+                                perSide: move.perSide,
                                 showSection: !move.item.section.isEmpty &&
                                     (index == 0 || moves[index - 1].item.section != move.item.section)
                             )
@@ -1502,8 +1516,9 @@ struct ClassBuilderView: View {
                             cue: libraryMove.cue,
                             buildingBlock: libraryMove.buildingBlock,
                             modification: libraryMove.modification.isEmpty ? " " : libraryMove.modification,
+                            layers: libraryMove.displayLayers,
                             props: libraryMove.props
-                        ))
+                        ), perSide: Sidedness.isOneSided(libraryMove.name))
                     }
                 }
             }
@@ -1521,7 +1536,7 @@ struct ClassBuilderView: View {
             break
         case .levelI:
             name = "Level I Mat"
-            moves = LevelIMatTemplate.exercises.map { DraftMove(item: $0) }
+            moves = LevelIMatTemplate.exercises.map { DraftMove(item: $0, perSide: Sidedness.isOneSided($0.name)) }
         case .edit(let plan):
             name = plan.name
             targetMinutes = max(5, Int((Double(plan.totalSeconds) / 60 / 5).rounded()) * 5)
@@ -1539,13 +1554,133 @@ struct ClassBuilderView: View {
                 if fixed.section.isEmpty && !carriedSection.isEmpty { fixed.section = carriedSection }
                 return DraftMove(item: fixed)
             }
+            moves = collapseSides(moves)
         }
+    }
+
+    // WHAT: puts the moves in the order you'd teach them:
+    //   1 Warm-Up (breathing, warm-ups, opening stretches)  2 Standing  3 Arms  4 Classical mat (classical order)
+    //   5 Core  6 Glutes  7 Cool-Down (closing stretches, thank you).
+    //   Moves stay in your order inside each group; one-sided moves are kept together so you switch sides once.
+    //   Each move's section becomes its group name.
+    // TO CHANGE: group order: the numbers in classGroup(). Opening stretches: openers.
+    private func arrangeForClass() {
+        let ranked = moves.enumerated().map { (offset, draft) -> (Int, Int, Int, String, DraftMove) in
+            let group = classGroup(for: draft.item.name)
+            let inner = group.rank == 4 ? classicalIndex(draft.item.name) : offset
+            return (group.rank, draft.perSide ? 1 : 0, inner, group.label, draft)
+        }
+        moves = ranked
+            .sorted { ($0.0, $0.1, $0.2) < ($1.0, $1.1, $1.2) }
+            .map { rank, _, _, label, draft in
+                var copy = draft
+                copy.item.section = label
+                return copy
+            }
+    }
+
+    private let openers: Set<String> = ["cat & cow", "standing roll down", "neck & shoulder release", "seated side bend", "thread the needle"]
+
+    private func classGroup(for name: String) -> (rank: Int, label: String) {
+        let key = MoveNames.key(name)
+        let library = libraryStore.moves.first { MoveNames.key($0.name) == key }
+            ?? LibraryMoveSet.all.first { MoveNames.key($0.name) == key }
+        if key.contains("welcome") || key.contains("check-in") { return (0, "Warm-Up") }
+        if key.contains("thank you") || key.contains("closing") || key.contains("gift") { return (8, "Cool-Down") }
+        if key.contains("breath") || key.contains("imprint") || openers.contains(key) || library?.area == .warmup {
+            return (1, "Warm-Up")
+        }
+        if library?.style == .classical { return (4, "Classical Mat") }
+        if library?.area == .stretch || key.contains("stretch") || key.contains("child's pose") || key.contains("roll down") {
+            return (7, "Cool-Down")
+        }
+        let standingWords = ["squat", "lunge", "plié", "relevé", "deadlift", "skater", "curtsy", "chair pose", "standing", "walkout", "arabesque", "attitude", "balance"]
+        if library?.style == .barre || library?.style == .standing || standingWords.contains(where: key.contains) {
+            return (2, "Standing")
+        }
+        if let area = library?.area {
+            switch area {
+            case .arms: return (3, "Arms")
+            case .core: return (5, "Core")
+            case .glutes: return (6, "Glutes")
+            default: break
+            }
+        }
+        switch WorkoutSeries.infer(from: name) {
+        case .lunge, .squat: return (2, "Standing")
+        case .arms: return (3, "Arms")
+        case .abs: return (5, "Core")
+        }
+    }
+
+    /// Position of a classical move in the classical mat order (unknown moves go last, in your order).
+    private func classicalIndex(_ name: String) -> Int {
+        let key = MoveNames.key(name)
+        let order = LibraryMoveSet.all.filter { $0.style == .classical }.map { MoveNames.key($0.name) }
+        return order.firstIndex(of: key) ?? 1000
+    }
+
+    // WHAT: turns one-sided moves into timed blocks: all of a group's one-sided moves on the right, then the same moves on the left.
+    //       Example: Clamshell, Side Kick → Clamshell (right), Side Kick (right), Clamshell (left), Side Kick (left).
+    private func expandSides(_ drafts: [DraftMove]) -> [PilatesClassItem] {
+        var result: [PilatesClassItem] = []
+        var run: [DraftMove] = []
+        func flush() {
+            guard !run.isEmpty else { return }
+            for (i, d) in run.enumerated() {
+                var right = d.item
+                right.name += " (right)"
+                if i == run.count - 1 && right.transition.isEmpty { right.transition = "Switch to the left side." }
+                result.append(right)
+            }
+            for d in run {
+                var left = d.item
+                left.name += " (left)"
+                result.append(left)
+            }
+            run = []
+        }
+        for d in drafts {
+            if d.perSide, run.isEmpty || run.last?.item.section == d.item.section {
+                run.append(d)
+            } else {
+                flush()
+                if d.perSide { run.append(d) } else { result.append(d.item) }
+            }
+        }
+        flush()
+        return result
+    }
+
+    // WHAT: when editing, shows "Move (right)" + "Move (left)" as one row marked R + L.
+    private func collapseSides(_ drafts: [DraftMove]) -> [DraftMove] {
+        var result: [DraftMove] = []
+        var usedLeft = Set<Int>()
+        for (i, d) in drafts.enumerated() {
+            if usedLeft.contains(i) { continue }
+            let name = d.item.name
+            if name.hasSuffix(" (right)") {
+                let base = String(name.dropLast(" (right)".count))
+                if let j = drafts.indices.first(where: { $0 > i && !usedLeft.contains($0) && drafts[$0].item.name == base + " (left)" }) {
+                    usedLeft.insert(j)
+                    var merged = d
+                    merged.item.name = base
+                    if merged.item.transition == "Switch to the left side." { merged.item.transition = "" }
+                    merged.perSide = true
+                    result.append(merged)
+                    continue
+                }
+            }
+            result.append(d)
+        }
+        return result
     }
 
     // WHAT: gives every move the same time so the class adds up to the class length (rounded to 5 seconds).
     private func spreadEvenly() {
         guard !moves.isEmpty else { return }
-        let each = max(15, Int((Double(targetSeconds) / Double(moves.count) / 5).rounded()) * 5)
+        let blocks = moves.reduce(0) { $0 + $1.blocks }
+        let each = max(15, Int((Double(targetSeconds) / Double(blocks) / 5).rounded()) * 5)
         for i in moves.indices { moves[i].item.seconds = each }
     }
 
@@ -1553,13 +1688,14 @@ struct ClassBuilderView: View {
     //       The class list notices the change and sends everything to the watch.
     private func save() {
         guard canSave else { return }
-        let items = moves.map { draft -> PilatesClassItem in
-            var item = draft.item
-            item.name = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
-            if item.name.isEmpty { item.name = "Untitled move" }
-            item.modification = item.modification.trimmingCharacters(in: .whitespacesAndNewlines)
-            return item
+        let cleaned = moves.map { draft -> DraftMove in
+            var copy = draft
+            copy.item.name = copy.item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+            if copy.item.name.isEmpty { copy.item.name = "Untitled move" }
+            copy.item.modification = copy.item.modification.trimmingCharacters(in: .whitespacesAndNewlines)
+            return copy
         }
+        let items = expandSides(cleaned)
         // Props = what you typed + every prop the moves use (no duplicates).
         var props: [String] = []
         let typed = extraProps.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
@@ -1583,6 +1719,7 @@ struct ClassBuilderView: View {
 private struct BuilderMoveRow: View {
     let number: Int
     let item: PilatesClassItem
+    var perSide = false
     let showSection: Bool
 
     var body: some View {
@@ -1610,7 +1747,15 @@ private struct BuilderMoveRow: View {
                     }
                 }
                 Spacer()
-                Text(TimeFormat.mmss(item.seconds))
+                if perSide {
+                    Text("R + L")
+                        .font(.caption2.weight(.bold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Theme.gold.opacity(0.2), in: Capsule())
+                        .foregroundStyle(Theme.brown)
+                }
+                Text(TimeFormat.mmss(item.seconds) + (perSide ? " each" : ""))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
                     .foregroundStyle(Theme.rose)
                 Image(systemName: "chevron.right")
@@ -1637,9 +1782,11 @@ private struct MoveEditorView: View {
                     TextField("Move name", text: $move.item.name)
                         .font(.headline)
                     TextField("Section (e.g. Warm-Up, Mat flow)", text: $move.item.section)
+                    Toggle("One side at a time (right, then left)", isOn: $move.perSide)
+                        .tint(Theme.rose)
                     Stepper(value: $move.item.seconds, in: 0...1800, step: 15) {
                         HStack {
-                            Text("Time")
+                            Text(move.perSide ? "Time per side" : "Time")
                             Spacer()
                             Text(TimeFormat.mmss(move.item.seconds))
                                 .monospacedDigit()
@@ -1665,7 +1812,8 @@ private struct MoveEditorView: View {
                     TextField("Setup", text: $move.item.setup, axis: .vertical)
                     TextField("Cue", text: $move.item.cue, axis: .vertical)
                     TextField("Building Block", text: $move.item.buildingBlock, axis: .vertical)
-                    TextField("Modification", text: $move.item.modification, axis: .vertical)
+                    TextField("Modification (easier version)", text: $move.item.modification, axis: .vertical)
+                    TextField("Layer up (harder options, easiest first)", text: $move.item.layers, axis: .vertical)
                     TextField("Transition to next move", text: $move.item.transition, axis: .vertical)
                 }
                 Section("Props for this move") {
@@ -2213,6 +2361,22 @@ private struct MoveDetailView: View {
                 .padding(16)
                 .background(Color.white)
                 .cornerRadius(12)
+
+                // Layer up (harder options)
+                if !move.displayLayers.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Layer up", systemImage: "plus.square.on.square")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.berry)
+                        Text(move.displayLayers)
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+                    .background(Color.white)
+                    .cornerRadius(12)
+                }
                 
                 // Action buttons
                 HStack(spacing: 12) {
@@ -2266,6 +2430,7 @@ private struct MoveFormView: View {
     @State private var cue = ""
     @State private var buildingBlock = ""
     @State private var modification = ""
+    @State private var layers = ""
     
     // Common props to suggest
     // TO CHANGE: prop choices in this builder. (Library moves use "Stretch band", "Yoga block", "Pilates ball"; match the spelling if you want filters to line up.)
@@ -2343,6 +2508,10 @@ private struct MoveFormView: View {
                     TextEditor(text: $modification)
                         .frame(height: 80)
                 }
+
+                Section("Layer up (harder options, easiest first)") {
+                    TextField("e.g. Pulse at the top → add a band → single leg", text: $layers, axis: .vertical)
+                }
                 
                 Section {
                     Button(action: saveMove) {
@@ -2376,6 +2545,7 @@ private struct MoveFormView: View {
                     cue = move.cue
                     buildingBlock = move.buildingBlock
                     modification = move.modification
+                    layers = move.displayLayers
                 }
             }
         }
@@ -2391,7 +2561,9 @@ private struct MoveFormView: View {
             seconds: Int(seconds) ?? 0,
             cue: cue,
             buildingBlock: buildingBlock,
-            modification: modification
+            modification: modification,
+            style: editingMove?.style,
+            layers: layers.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : layers
         )
         libraryStore.addOrReplace(move)
         dismiss()

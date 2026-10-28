@@ -177,6 +177,9 @@ struct WatchRunView: View {
                         if !item.modification.isEmpty {
                             LabeledNote(title: "Modification", text: item.modification, icon: "exclamationmark.triangle.fill", color: Theme.peach, textColor: .white)
                         }
+                        if !item.displayLayers.isEmpty {
+                            LabeledNote(title: "Layer up", text: item.displayLayers, icon: "plus.square.on.square", color: Theme.rose, textColor: .white)
+                        }
                         if !item.transition.isEmpty {
                             LabeledNote(title: "Transition", text: item.transition, icon: "arrow.turn.down.right", color: Theme.gold, textColor: .white)
                         }
