@@ -6,6 +6,7 @@ struct ContentView: View {
     @StateObject private var classStore = ClassStore()
     @StateObject private var logStore = LogStore()
     @StateObject private var studentStore = StudentStore()
+    @StateObject private var libraryStore = LibraryStore()
     @StateObject private var connectivity = PhoneConnectivityManager()
 
     var body: some View {
@@ -22,12 +23,18 @@ struct ContentView: View {
                 StudentsView()
             }
             .tabItem { Label("Students", systemImage: "person.2") }
+
+            NavigationStack {
+                LibraryView()
+            }
+            .tabItem { Label("Library", systemImage: "books.vertical") }
         }
         .tint(Theme.rose)
         .preferredColorScheme(.light)
         .environmentObject(classStore)
         .environmentObject(logStore)
         .environmentObject(studentStore)
+        .environmentObject(libraryStore)
         .environmentObject(connectivity)
         .onChange(of: connectivity.latestWatchLogs) { _, logs in
             logStore.mergeRemote(logs)
@@ -1319,7 +1326,545 @@ private struct LogSessionForm: View {
     }
 }
 
+// MARK: - Library Tab
+
+/// Main Library tab showing:
+/// - Search for exercise moves
+/// - Filter by area (warm-up, arms, glutes, core, stretch) and props
+/// - Move detail with cue, Building Block, Modification
+/// - Add custom moves
+struct LibraryView: View {
+    @EnvironmentObject private var libraryStore: LibraryStore
+    
+    @State private var searchText = ""
+    @State private var selectedAreas: Set<ExerciseArea> = []
+    @State private var selectedProps: Set<String> = []
+    @State private var showAddForm = false
+    
+    private var filteredMoves: [LibraryMove] {
+        var result = libraryStore.moves
+        
+        // Filter by search
+        if !searchText.isEmpty {
+            result = result.filter { $0.name.lowercased().contains(searchText.lowercased()) }
+        }
+        
+        // Filter by area
+        if !selectedAreas.isEmpty {
+            result = result.filter { selectedAreas.contains($0.area) }
+        }
+        
+        // Filter by props
+        if !selectedProps.isEmpty {
+            result = result.filter { move in
+                selectedProps.allSatisfy { prop in move.props.contains(prop) }
+            }
+        }
+        
+        return result.sorted { $0.name.lowercased() < $1.name.lowercased() }
+    }
+    
+    private var allProps: [String] {
+        Array(Set(libraryStore.moves.flatMap { $0.props })).sorted()
+    }
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("LIBRARY")
+                    .font(.caption.weight(.bold))
+                    .tracking(2)
+                    .foregroundStyle(Theme.gold)
+                Text("Your exercise reference")
+                    .font(.subheadline)
+                    .foregroundStyle(Theme.brown.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .background(Theme.blush)
+            
+            // Search bar
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(Theme.petal)
+                TextField("Search moves", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(Theme.petal)
+                    }
+                }
+            }
+            .padding(12)
+            .background(Color.white)
+            .cornerRadius(10)
+            .padding(16)
+            
+            // Filters
+            VStack(alignment: .leading, spacing: 12) {
+                // Area filter
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("AREA")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Theme.gold)
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(ExerciseArea.allCases, id: \.self) { area in
+                                Button(action: { 
+                                    if selectedAreas.contains(area) {
+                                        selectedAreas.remove(area)
+                                    } else {
+                                        selectedAreas.insert(area)
+                                    }
+                                }) {
+                                    Text(area.label)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(selectedAreas.contains(area) ? .white : Theme.berry)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 6)
+                                        .background(selectedAreas.contains(area) ? Theme.rose : Color.white)
+                                        .cornerRadius(16)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 16)
+                                                .stroke(selectedAreas.contains(area) ? Color.clear : Theme.petal.opacity(0.3), lineWidth: 1)
+                                        )
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
+                }
+                
+                // Prop filter
+                if !allProps.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("PROPS")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Theme.gold)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(allProps, id: \.self) { prop in
+                                    Button(action: { 
+                                        if selectedProps.contains(prop) {
+                                            selectedProps.remove(prop)
+                                        } else {
+                                            selectedProps.insert(prop)
+                                        }
+                                    }) {
+                                        Text(prop)
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(selectedProps.contains(prop) ? .white : Theme.sage)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
+                                            .background(selectedProps.contains(prop) ? Theme.sage : Color.white)
+                                            .cornerRadius(16)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 16)
+                                                    .stroke(selectedProps.contains(prop) ? Color.clear : Theme.sage.opacity(0.3), lineWidth: 1)
+                                            )
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 16)
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .background(Color.white)
+            
+            // Move list
+            if filteredMoves.isEmpty {
+                VStack(spacing: 16) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 48))
+                        .foregroundStyle(Theme.petal)
+                    Text(searchText.isEmpty && selectedAreas.isEmpty && selectedProps.isEmpty ? "No moves yet" : "No matching moves")
+                        .font(.headline)
+                        .foregroundStyle(Theme.brown)
+                    Button(action: { showAddForm = true }) {
+                        Text("Add your first move")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                    }
+                }
+                .frame(maxHeight: .infinity)
+                .padding(40)
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(filteredMoves, id: \.id) { move in
+                            NavigationLink(destination: MoveDetailView(move: move)) {
+                                MoveRowView(move: move)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+            
+            Spacer()
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button(action: { showAddForm = true }) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundStyle(Theme.rose)
+                        .font(.system(size: 20))
+                }
+            }
+        }
+        .sheet(isPresented: $showAddForm) {
+            MoveFormView(libraryStore: libraryStore, editingMove: nil)
+        }
+    }
+}
+
+// MARK: - Move Row View
+private struct MoveRowView: View {
+    let move: LibraryMove
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(move.name)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    
+                    HStack(spacing: 8) {
+                        Chip(text: move.area.label, tint: Theme.gold)
+                        
+                        if !move.props.isEmpty {
+                            Text(move.props.joined(separator: ", "))
+                                .font(.caption2)
+                                .foregroundStyle(Theme.sage)
+                        }
+                    }
+                    
+                    HStack(spacing: 12) {
+                        if !move.reps.isEmpty {
+                            Label(move.reps, systemImage: "repeat")
+                                .font(.caption)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        }
+                        if move.seconds > 0 {
+                            Label("\(move.seconds)s", systemImage: "clock")
+                                .font(.caption)
+                                .foregroundStyle(Theme.brown.opacity(0.6))
+                        }
+                    }
+                }
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(Theme.petal)
+                    .font(.caption.weight(.semibold))
+            }
+        }
+        .padding(12)
+        .background(Color.white)
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Theme.petal.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - Move Detail View
+private struct MoveDetailView: View {
+    @EnvironmentObject private var libraryStore: LibraryStore
+    
+    let move: LibraryMove
+    @State private var editingMove: LibraryMove?
+    @State private var showEditForm = false
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                // Header
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(move.name)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(Theme.berry)
+                    
+                    HStack(spacing: 8) {
+                        Chip(text: move.area.label, tint: Theme.gold)
+                        
+                        if !move.props.isEmpty {
+                            ForEach(move.props, id: \.self) { prop in
+                                Chip(text: prop, tint: Theme.sage)
+                            }
+                        }
+                    }
+                    
+                    HStack(spacing: 16) {
+                        if !move.reps.isEmpty {
+                            VStack(spacing: 4) {
+                                Label("Reps", systemImage: "repeat")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Theme.gold)
+                                Text(move.reps)
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(Theme.brown)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Theme.gold.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                        
+                        if move.seconds > 0 {
+                            VStack(spacing: 4) {
+                                Label("Time", systemImage: "clock")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Theme.rose)
+                                Text("\(move.seconds)s")
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(Theme.brown)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Theme.rose.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                
+                // Cue
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Cue", systemImage: "speaker.wave.2")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    Text(move.cue)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.brown)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                
+                // Building Block
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Building Block", systemImage: "building.2")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    Text(move.buildingBlock)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.brown)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                
+                // Modification
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Modification", systemImage: "slider.horizontal.3")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.berry)
+                    Text(move.modification)
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.brown)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+                
+                // Action buttons
+                HStack(spacing: 12) {
+                    Button(action: { showEditForm = true }) {
+                        Label("Edit", systemImage: "pencil")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Theme.rose.opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                    
+                    Button(role: .destructive, action: { libraryStore.delete(move) }) {
+                        Label("Delete", systemImage: "trash")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                    }
+                }
+                .padding(16)
+                .background(Color.white)
+                .cornerRadius(12)
+            }
+            .padding(16)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle(move.name)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showEditForm) {
+            MoveFormView(libraryStore: libraryStore, editingMove: move)
+        }
+    }
+}
+
+// MARK: - Move Form View
+private struct MoveFormView: View {
+    @Environment(\.dismiss) var dismiss
+    let libraryStore: LibraryStore
+    let editingMove: LibraryMove?
+    
+    @State private var name = ""
+    @State private var selectedArea = ExerciseArea.warmup
+    @State private var selectedProps: Set<String> = []
+    @State private var reps = ""
+    @State private var seconds = ""
+    @State private var cue = ""
+    @State private var buildingBlock = ""
+    @State private var modification = ""
+    
+    // Common props to suggest
+    private let commonProps = ["Resistance Band", "Dumbbells", "Wrist Weights", "Thigh Band", "Yoga Block", "Pilates Ball", "Magic Circle"]
+    
+    private var isValid: Bool {
+        !name.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !cue.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !buildingBlock.trimmingCharacters(in: .whitespaces).isEmpty &&
+        !modification.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Move Name") {
+                    TextField("Name", text: $name)
+                }
+                
+                Section("Area") {
+                    Picker("Area", selection: $selectedArea) {
+                        ForEach(ExerciseArea.allCases, id: \.self) { area in
+                            Text(area.label).tag(area)
+                        }
+                    }
+                }
+                
+                Section("Reps / Repetitions") {
+                    TextField("e.g., 5-10x or 100 pumps", text: $reps)
+                }
+                
+                Section("Time") {
+                    TextField("Seconds (optional)", text: $seconds)
+                        .keyboardType(.numberPad)
+                }
+                
+                Section("Props") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(commonProps, id: \.self) { prop in
+                            HStack {
+                                Text(prop)
+                                Spacer()
+                                if selectedProps.contains(prop) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundStyle(Theme.rose)
+                                }
+                            }
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if selectedProps.contains(prop) {
+                                    selectedProps.remove(prop)
+                                } else {
+                                    selectedProps.insert(prop)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Section("Cue (what to say)") {
+                    TextEditor(text: $cue)
+                        .frame(height: 80)
+                }
+                
+                Section("Building Block (progression)") {
+                    TextEditor(text: $buildingBlock)
+                        .frame(height: 80)
+                }
+                
+                Section("Modification (easier version)") {
+                    TextEditor(text: $modification)
+                        .frame(height: 80)
+                }
+                
+                Section {
+                    Button(action: saveMove) {
+                        Text(editingMove == nil ? "Add Move" : "Save Changes")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(12)
+                            .background(isValid ? Theme.rose : Theme.petal)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!isValid)
+                }
+            }
+            .navigationTitle(editingMove == nil ? "Add Move" : "Edit Move")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { dismiss() }
+                        .foregroundStyle(Theme.rose)
+                }
+            }
+            .preferredColorScheme(.light)
+            .onAppear {
+                if let move = editingMove {
+                    name = move.name
+                    selectedArea = move.area
+                    selectedProps = Set(move.props)
+                    reps = move.reps
+                    seconds = move.seconds > 0 ? "\(move.seconds)" : ""
+                    cue = move.cue
+                    buildingBlock = move.buildingBlock
+                    modification = move.modification
+                }
+            }
+        }
+    }
+    
+    private func saveMove() {
+        let move = LibraryMove(
+            id: editingMove?.id ?? UUID(),
+            name: name,
+            area: selectedArea,
+            props: Array(selectedProps).sorted(),
+            reps: reps,
+            seconds: Int(seconds) ?? 0,
+            cue: cue,
+            buildingBlock: buildingBlock,
+            modification: modification
+        )
+        libraryStore.addOrReplace(move)
+        dismiss()
+    }
+}
+
 // MARK: - Students Tab
+
 
 /// Main Students tab showing:
 /// - List of students with name, contact, injuries
