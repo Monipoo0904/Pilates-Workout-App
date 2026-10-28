@@ -18,7 +18,11 @@ final class LogStore: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
         fileURL = docs.appendingPathComponent(filename)
         load()
+        // Your own web-tracker data (hours, students, course progress) is added only in builds you run from Xcode,
+        // never in the TestFlight / App Store version, so other people don't get your data.
+        #if DEBUG
         importWebTrackerIfNeeded()
+        #endif
     }
 
     func load() {

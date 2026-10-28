@@ -12,8 +12,8 @@ A plain-language guide for Monique. It covers where things live, how to make the
 4. **Built-in class changed? Raise its `version`.** Phones and watches keep their own saved copy, and they only take your edit when the number goes up (3 → 4).
 5. **Shared files go to both apps.** Anything in the **Shared** folder must be checked for both **PilatesTimerProject** and **PilatesTimerWatchApp** under **Target Membership** (right sidebar).
 6. **Don't change the bundle identifiers.** They're set and working:
-   - iPhone: `com.myvillageprojecttechnologiescorp.PilatesTimerProject`
-   - Watch: `com.myvillageprojecttechnologiescorp.PilatesTimerProject.watchkitapp`
+   - iPhone: `com.myvillageprojecttechnologiescorp.pilatestimer`
+   - Watch: `com.myvillageprojecttechnologiescorp.pilatestimer.watchkitapp`
 
 ---
 

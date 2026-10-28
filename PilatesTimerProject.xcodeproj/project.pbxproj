@@ -456,7 +456,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.pilatestimer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -499,7 +499,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.pilatestimer;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -528,13 +528,13 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Pilates Timer reads your workouts to track your Pilates classes.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Pilates Timer saves your Pilates classes as workouts.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.myvillageprojecttechnologiescorp.pilatestimer;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.pilatestimer.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
@@ -562,13 +562,13 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Pilates Timer reads your workouts to track your Pilates classes.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Pilates Timer saves your Pilates classes as workouts.";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
-				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.myvillageprojecttechnologiescorp.PilatesTimerProject;
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = com.myvillageprojecttechnologiescorp.pilatestimer;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.PilatesTimerProject.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.myvillageprojecttechnologiescorp.pilatestimer.watchkitapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
