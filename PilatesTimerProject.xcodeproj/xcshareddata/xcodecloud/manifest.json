@@ -1,0 +1,9 @@
+{
+  "id" : "153f1d04-b944-4268-8bea-7cd255616a50",
+  "targets" : [
+    {
+      "id" : "b794c723-5d97-4300-a6fa-44752270fbdf",
+      "name" : "PilatesTimerWatchApp Watch App"
+    }
+  ]
+}

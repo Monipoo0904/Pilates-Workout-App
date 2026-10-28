@@ -10,12 +10,29 @@ enum LogType: String, Codable, CaseIterable, Identifiable {
 }
 
 struct ClassLogEntry: Codable, Identifiable, Hashable {
+    // MARK: - Original Fields
+    /// Unique identifier for this log entry
     var id: UUID
+    /// Date the class was done
     var date: Date
+    /// Type of session: practice, observation, or teaching
     var type: LogType
+    /// Hours spent (0.25 increments)
     var hours: Double
+    /// Name of the class taken or taught
     var className: String
+    /// Device that logged the session (e.g., "iPhone", "Watch")
     var sourceDevice: String
+    
+    // MARK: - New Extended Fields (backward compatible with decodeIfPresent)
+    /// Where the class was held (studio name, location, or "home")
+    /// Example: "The Mat", "Ergo Body", "home practice"
+    var place: String?
+    /// UUIDs of students taught (for teaching sessions)
+    /// Empty or nil = personal practice
+    var studentIds: [UUID]?
+    /// Notes on the session (how it went, what to focus on next, etc.)
+    var note: String?
 
     init(
         id: UUID = UUID(),
@@ -23,7 +40,10 @@ struct ClassLogEntry: Codable, Identifiable, Hashable {
         type: LogType,
         hours: Double,
         className: String,
-        sourceDevice: String
+        sourceDevice: String,
+        place: String? = nil,
+        studentIds: [UUID]? = nil,
+        note: String? = nil
     ) {
         self.id = id
         self.date = date
@@ -31,6 +51,30 @@ struct ClassLogEntry: Codable, Identifiable, Hashable {
         self.hours = hours
         self.className = className
         self.sourceDevice = sourceDevice
+        self.place = place
+        self.studentIds = studentIds
+        self.note = note
+    }
+
+    // MARK: - Custom Decoding for Backward Compatibility
+    /// Allows old saved logs (without place, studentIds, note) to load without errors.
+    /// New fields are optional; old saves will have nil values for new fields.
+    enum CodingKeys: String, CodingKey {
+        case id, date, type, hours, className, sourceDevice, place, studentIds, note
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        date = try container.decode(Date.self, forKey: .date)
+        type = try container.decode(LogType.self, forKey: .type)
+        hours = try container.decode(Double.self, forKey: .hours)
+        className = try container.decode(String.self, forKey: .className)
+        sourceDevice = try container.decode(String.self, forKey: .sourceDevice)
+        // decodeIfPresent: gracefully handle missing fields from old saves
+        place = try container.decodeIfPresent(String.self, forKey: .place)
+        studentIds = try container.decodeIfPresent([UUID].self, forKey: .studentIds)
+        note = try container.decodeIfPresent(String.self, forKey: .note)
     }
 }
 
