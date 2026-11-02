@@ -17,6 +17,7 @@ struct ContentView: View {
     @StateObject private var studentStore = StudentStore()
     @StateObject private var libraryStore = LibraryStore()
     @StateObject private var connectivity = PhoneConnectivityManager()
+    @StateObject private var examPrepStore = ExamPrepStore()
 
     var body: some View {
         TabView {
@@ -24,6 +25,11 @@ struct ContentView: View {
                 ClassListView()
             }
             .tabItem { Label("Classes", systemImage: "figure.pilates") }
+
+            NavigationStack {
+                ExamPrepHomeView()
+            }
+            .tabItem { Label("Exam Prep", systemImage: "checklist") }
 
             HoursView()
                 .tabItem { Label("Hours", systemImage: "clock.badge.checkmark") }
@@ -45,6 +51,7 @@ struct ContentView: View {
         .environmentObject(studentStore)
         .environmentObject(libraryStore)
         .environmentObject(connectivity)
+        .environmentObject(examPrepStore)
         .onChange(of: connectivity.latestWatchLogs) { _, logs in
             logStore.mergeRemote(logs)
         }
@@ -64,6 +71,7 @@ struct ClassListView: View {
     @EnvironmentObject private var classStore: ClassStore
     @EnvironmentObject private var libraryStore: LibraryStore
     @EnvironmentObject private var connectivity: PhoneConnectivityManager
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
 
     @State private var statusText = ""
     @State private var showImporter = false
@@ -100,6 +108,14 @@ struct ClassListView: View {
                         .font(.caption)
                         .foregroundStyle(Theme.sage)
                 }
+
+                NavigationLink {
+                    ExamPrepHomeView()
+                } label: {
+                    ExamPrepSummaryCard()
+                        .environmentObject(examPrepStore)
+                }
+                .buttonStyle(.plain)
 
                 Text("Your classes")
                     .font(.headline)
@@ -518,7 +534,9 @@ struct PhoneRunView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
-            controller.start()
+            controller.start { snapshot, previous in
+                handleRunHaptics(snapshot: snapshot, previous: previous)
+            }
             // WHAT: starting a class on the iPhone also starts it on the Apple Watch.
             connectivity.startClassOnWatch(controller.plan)
         }
@@ -566,6 +584,16 @@ struct PhoneRunView: View {
             sourceDevice: "iPhone"
         )
         logStore.add(entry)
+    }
+
+    private func handleRunHaptics(snapshot: TimerSnapshot, previous: TimerSnapshot?) {
+        guard !snapshot.isPaused else { return }
+        if previous == nil || previous?.currentIndex != snapshot.currentIndex {
+            AppHaptics.runTransition()
+        }
+        if previous?.currentItemRemaining != 10 && snapshot.currentItemRemaining == 10 {
+            AppHaptics.tenSecondWarning()
+        }
     }
 }
 
@@ -3101,6 +3129,1366 @@ private struct StudentFormView: View {
             studentStore.delete(student)
             dismiss()
         }
+    }
+}
+
+// MARK: - Exam Prep
+
+// WHAT: Exam Prep home: summary + links to five preparation sections.
+struct ExamPrepHomeView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("EXAM PREP")
+                        .font(.caption.weight(.bold))
+                        .tracking(2)
+                        .foregroundStyle(Theme.gold)
+                    Text("Peak Pilates Level I")
+                        .font(Theme.display(30))
+                        .foregroundStyle(Theme.berry)
+                    Text("Theory + practical preparation in one place.")
+                        .font(.subheadline)
+                        .foregroundStyle(Theme.brown.opacity(0.8))
+                }
+                .padding(.top, 8)
+
+                ExamPrepSummaryCard()
+
+                VStack(spacing: 10) {
+                    ExamPrepLinkRow(title: "1) Mat Order Drill", subtitle: "Level I Mat (35): sequence, transitions, and recall") {
+                        MatOrderDrillView()
+                    }
+                    ExamPrepLinkRow(title: "2) Technique Self-Check", subtitle: "Run-through, timer, and point-losing reminders") {
+                        TechniqueSelfCheckView()
+                    }
+                    ExamPrepLinkRow(title: "3) Teaching Practice", subtitle: "Segment assignment, cue cards, timer, and rubric") {
+                        TeachingPracticeView()
+                    }
+                    ExamPrepLinkRow(title: "4) Theory Quiz", subtitle: "Shuffled rounds with explanations + missed pile") {
+                        TheoryQuizView()
+                    }
+                    ExamPrepLinkRow(title: "5) Exam Checklist", subtitle: "Final readiness tick-off list") {
+                        ExamChecklistView()
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Exam Prep")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ExamPrepLinkRow<Destination: View>: View {
+    let title: String
+    let subtitle: String
+    let destination: () -> Destination
+
+    var body: some View {
+        NavigationLink(destination: destination()) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(Theme.berry)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Theme.brown.opacity(0.8))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+            .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.petal, lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// WHAT: Compact summary card used on Classes screen and Exam Prep home.
+private struct ExamPrepSummaryCard: View {
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Exam Prep summary")
+                    .font(.headline)
+                    .foregroundStyle(Theme.berry)
+                Spacer()
+                Text("Tap to practice")
+                    .font(.caption)
+                    .foregroundStyle(Theme.sage)
+            }
+
+            summaryRow("Order drill accuracy", "\(examPrepStore.state.orderDrillAccuracy)%")
+            summaryRow("Last technique run", examPrepStore.lastTechniqueSummary)
+            summaryRow("Last teaching score", examPrepStore.lastTeachingSummary)
+            summaryRow("Best theory quiz score", "\(examPrepStore.state.bestTheoryQuizScore)%")
+        }
+        .padding(14)
+        .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.petal, lineWidth: 1))
+    }
+
+    private func summaryRow(_ label: String, _ value: String) -> some View {
+        HStack {
+            Text(label)
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown)
+            Spacer()
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.rose)
+        }
+    }
+}
+
+struct MatOrderDrillView: View {
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
+    @State private var mode: ExamPrepMatMode = .whatComesNext
+
+    @State private var currentPromptIndex = 0
+    @State private var nextOptions: [Int] = []
+    @State private var nextFeedback = ""
+
+    @State private var chunkOrder: [Int] = []
+    @State private var chunkFeedback = ""
+    @State private var draggedChunkItem: Int?
+
+    @State private var fullRecallInput = ""
+    @State private var fullRecallReport: ExamPrepFullRecallReport?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Picker("Mode", selection: $mode) {
+                    ForEach(ExamPrepMatMode.allCases, id: \.self) { choice in
+                        Text(choice.rawValue).tag(choice)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                switch mode {
+                case .whatComesNext:
+                    whatComesNextCard
+                case .putInOrder:
+                    putInOrderCard
+                case .fullRecall:
+                    fullRecallCard
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Most-missed spots")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    if examPrepStore.topMissedSteps(limit: 5).isEmpty {
+                        Text("No misses tracked yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown.opacity(0.8))
+                    } else {
+                        ForEach(examPrepStore.topMissedSteps(limit: 5), id: \.index) { item in
+                            Text("Step \(item.index + 1): \(ExamPrepData.levelIMat35[item.index]) — \(item.count) misses")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.brown)
+                        }
+                    }
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Level I Mat (35)")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    ForEach(Array(ExamPrepData.levelIMat35.enumerated()), id: \.offset) { index, name in
+                        Text("\(index + 1). \(name)")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown)
+                    }
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+            }
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Mat Order Drill")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            if nextOptions.isEmpty { loadWhatComesNextPrompt() }
+            if chunkOrder.isEmpty { loadChunk() }
+        }
+    }
+
+    private var whatComesNextCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("What comes next?")
+                .font(.headline)
+                .foregroundStyle(Theme.berry)
+            Text("Current: \(ExamPrepData.levelIMat35[currentPromptIndex])")
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown)
+
+            ForEach(nextOptions, id: \.self) { option in
+                Button {
+                    let expected = currentPromptIndex + 1
+                    let isCorrect = option == expected
+                    examPrepStore.recordWhatComesNext(expectedNextIndex: expected, wasCorrect: isCorrect)
+                    nextFeedback = isCorrect ? "Correct." : "Not quite. Next is \(expected + 1). \(ExamPrepData.levelIMat35[expected])"
+                    if isCorrect {
+                        AppHaptics.success()
+                    } else {
+                        AppHaptics.warning()
+                    }
+                } label: {
+                    Text("\(option + 1). \(ExamPrepData.levelIMat35[option])")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 10)
+                        .padding(.horizontal, 12)
+                        .background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if !nextFeedback.isEmpty {
+                Text(nextFeedback)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(nextFeedback.hasPrefix("Correct") ? Theme.sage : Theme.clay)
+            }
+
+            Button("Next prompt") {
+                loadWhatComesNextPrompt()
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.rose, in: Capsule())
+        }
+        .padding(14)
+        .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var putInOrderCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Put in order")
+                .font(.headline)
+                .foregroundStyle(Theme.berry)
+            Text("Drag to reorder this shuffled consecutive chunk.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown.opacity(0.8))
+
+            VStack(spacing: 8) {
+                ForEach(chunkOrder, id: \.self) { index in
+                    ExamPrepDraggableChunkRow(index: index, isActive: draggedChunkItem == index)
+                        .onDrag {
+                            draggedChunkItem = index
+                            return NSItemProvider(object: "\(index)" as NSString)
+                        }
+                        .onDrop(
+                            of: [UTType.text],
+                            delegate: ExamPrepChunkDropDelegate(
+                                chunkOrder: $chunkOrder,
+                                draggedItem: $draggedChunkItem,
+                                targetItem: index
+                            )
+                        )
+                }
+            }
+
+            HStack {
+                Button("Check order") {
+                    let expected = chunkOrder.sorted()
+                    let isCorrect = chunkOrder == expected
+                    examPrepStore.recordChunkResult(expected: expected, actual: chunkOrder)
+                    chunkFeedback = isCorrect ? "Correct order." : "Some are out of order."
+                    if isCorrect {
+                        AppHaptics.success()
+                    } else {
+                        AppHaptics.warning()
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                Spacer()
+                Button("New chunk") {
+                    loadChunk()
+                }
+                .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(Theme.rose)
+
+            if !chunkFeedback.isEmpty {
+                Text(chunkFeedback)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(chunkFeedback.hasPrefix("Correct") ? Theme.sage : Theme.clay)
+            }
+        }
+        .padding(14)
+        .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private var fullRecallCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Full recall")
+                .font(.headline)
+                .foregroundStyle(Theme.berry)
+            Text("Type the full Level I Mat (35) order from memory, one step per line.")
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown.opacity(0.8))
+
+            TextEditor(text: $fullRecallInput)
+                .frame(minHeight: 220)
+                .padding(8)
+                .background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Theme.petal, lineWidth: 1))
+
+            HStack {
+                Button("Check recall") {
+                    fullRecallReport = buildExamPrepFullRecallReport(input: fullRecallInput)
+                    if let report = fullRecallReport {
+                        examPrepStore.recordFullRecallMismatches(report.mismatchIndices)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                Spacer()
+                Button("Clear") {
+                    fullRecallInput = ""
+                    fullRecallReport = nil
+                }
+                .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(Theme.rose)
+
+            if let report = fullRecallReport {
+                Text("Accuracy: \(report.accuracy)%")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.berry)
+                if report.details.isEmpty {
+                    Text("Perfect recall.")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.sage)
+                } else {
+                    ForEach(Array(report.details.enumerated()), id: \.offset) { _, detail in
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(Theme.brown)
+                    }
+                }
+            }
+        }
+        .padding(14)
+        .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func loadWhatComesNextPrompt() {
+        currentPromptIndex = examPrepStore.weightedPromptIndex(maxIndex: ExamPrepData.levelIMat35.count - 2)
+        let expected = currentPromptIndex + 1
+        var candidates: Set<Int> = [expected]
+        while candidates.count < 4 {
+            candidates.insert(Int.random(in: 1..<ExamPrepData.levelIMat35.count))
+        }
+        nextOptions = Array(candidates).shuffled()
+        nextFeedback = ""
+    }
+
+    private func loadChunk() {
+        let length = Int.random(in: 4...8)
+        let start = examPrepStore.weightedChunkStart(chunkLength: length, totalCount: ExamPrepData.levelIMat35.count)
+        let chunk = Array(start..<(start + length))
+        chunkOrder = chunk.shuffled()
+        draggedChunkItem = nil
+        chunkFeedback = ""
+    }
+}
+
+private struct ExamPrepDraggableChunkRow: View {
+    let index: Int
+    let isActive: Bool
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(Theme.sage)
+            Text("\(index + 1). \(ExamPrepData.levelIMat35[index])")
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(isActive ? Theme.petal.opacity(0.35) : Theme.background)
+        )
+    }
+}
+
+private struct ExamPrepChunkDropDelegate: DropDelegate {
+    @Binding var chunkOrder: [Int]
+    @Binding var draggedItem: Int?
+    let targetItem: Int
+
+    func dropEntered(info: DropInfo) {
+        guard let draggedItem,
+              draggedItem != targetItem,
+              let fromIndex = chunkOrder.firstIndex(of: draggedItem),
+              let toIndex = chunkOrder.firstIndex(of: targetItem) else { return }
+
+        withAnimation {
+            chunkOrder.move(
+                fromOffsets: IndexSet(integer: fromIndex),
+                toOffset: toIndex > fromIndex ? toIndex + 1 : toIndex
+            )
+        }
+        AppHaptics.dragStep()
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedItem = nil
+        AppHaptics.drop()
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+}
+
+struct TechniqueSelfCheckView: View {
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
+    @State private var currentIndex = 0
+    @State private var timerEnabled = false
+    @State private var timerRunning = false
+    @State private var elapsedSeconds = 0
+    @State private var runStartedAt: Date?
+
+    @State private var checklistSetup = false
+    @State private var checklistTransition = false
+    @State private var checklistReps = false
+    @State private var checklistPrinciples = false
+
+    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                examPrepInfoCard(lines: [
+                    "Passing: 93% (112 of 120), scored as a whole; if failed, all technique is repeated.",
+                    "Perform every Level I exercise, 3 reps each, with correct transitions, from memory, and with no name prompts.",
+                    "Add-In exercises are not assessed.",
+                    "Building Blocks are allowed only if they meet the exercise goal, make sense for the body, and are pre-approved by the assessing Master Instructor."
+                ])
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Run-through mode")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    Text("Step \(currentIndex + 1) of \(ExamPrepData.levelIMat35.count)")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.rose)
+                    Text(ExamPrepData.levelIMat35[currentIndex])
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(Theme.brown)
+
+                    Toggle("Use timer", isOn: $timerEnabled)
+                        .tint(Theme.rose)
+                    if timerEnabled {
+                        HStack {
+                            Text("Elapsed")
+                            Spacer()
+                            Text(TimeFormat.mmss(elapsedSeconds))
+                                .monospacedDigit()
+                        }
+                        Button(timerRunning ? "Pause timer" : "Start timer") {
+                            timerRunning.toggle()
+                            if timerRunning, runStartedAt == nil { runStartedAt = Date() }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.rose)
+                    }
+
+                    Toggle("Correct setup / starting position", isOn: $checklistSetup).tint(Theme.rose)
+                    Toggle("Correct order and transition in", isOn: $checklistTransition).tint(Theme.rose)
+                    Toggle("3 controlled reps, no momentum or hoisting", isOn: $checklistReps).tint(Theme.rose)
+                    Toggle("Box, Centerline, Frame and Powerhouse applied", isOn: $checklistPrinciples).tint(Theme.rose)
+
+                    HStack {
+                        Button("Back") {
+                            guard currentIndex > 0 else { return }
+                            currentIndex -= 1
+                            resetChecklist()
+                        }
+                        Spacer()
+                        Button("Next") {
+                            guard currentIndex < ExamPrepData.levelIMat35.count - 1 else { return }
+                            if runStartedAt == nil { runStartedAt = Date() }
+                            currentIndex += 1
+                            resetChecklist()
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.rose)
+
+                    Button("Finish run-through") {
+                        timerRunning = false
+                        let elapsed = timerEnabled ? elapsedSeconds : Int(Date().timeIntervalSince(runStartedAt ?? Date()))
+                        examPrepStore.recordTechniqueRun(
+                            completedSteps: currentIndex + 1,
+                            totalSteps: ExamPrepData.levelIMat35.count,
+                            elapsedSeconds: max(elapsed, 0)
+                        )
+                        AppHaptics.success()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.rose, in: Capsule())
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Point-losing reminders for this step")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    ForEach(TechniqueErrorCatalog.errors(for: ExamPrepData.levelIMat35[currentIndex]), id: \.self) { item in
+                        Text("• \(item)")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown)
+                    }
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+            }
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Technique Self-Check")
+        .navigationBarTitleDisplayMode(.inline)
+        .onReceive(tick) { _ in
+            if timerEnabled && timerRunning { elapsedSeconds += 1 }
+        }
+    }
+
+    private func resetChecklist() {
+        checklistSetup = false
+        checklistTransition = false
+        checklistReps = false
+        checklistPrinciples = false
+    }
+}
+
+struct TeachingPracticeView: View {
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
+    @State private var segmentIndices: [Int] = []
+    @State private var cardPosition = 0
+    @State private var timerSeconds = 900
+    @State private var timerRunning = false
+    private let tick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var rubricValues = Array(repeating: true, count: 13)
+    @State private var saveStatus = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                examPrepInfoCard(lines: [
+                    "Passing: 13/13.",
+                    "Teach 15 minutes of a Level I group mat class to at least 3 students.",
+                    "Leaving out, forgetting, or misplacing an exercise in your segment is an automatic fail.",
+                    "Readiness target: keeps the group together and moving safely."
+                ])
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Assigned segment")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    Button("Assign my segment") {
+                        assignSegment()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.rose, in: Capsule())
+                    if segmentIndices.isEmpty {
+                        Text("No segment assigned yet.")
+                            .font(.subheadline)
+                            .foregroundStyle(Theme.brown.opacity(0.8))
+                    } else {
+                        ForEach(Array(segmentIndices.enumerated()), id: \.offset) { offset, index in
+                            Text("\(offset + 1). \(ExamPrepData.levelIMat35[index])")
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.brown)
+                        }
+                    }
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("15-minute timer")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    Text(TimeFormat.mmss(timerSeconds))
+                        .font(.system(size: 44, weight: .semibold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(Theme.rose)
+                    HStack {
+                        Button(timerRunning ? "Pause" : "Start") {
+                            timerRunning.toggle()
+                        }
+                        Spacer()
+                        Button("Reset") {
+                            timerRunning = false
+                            timerSeconds = 900
+                        }
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Theme.rose)
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+
+                if !segmentIndices.isEmpty {
+                    let currentIndex = segmentIndices[cardPosition]
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Cue card")
+                            .font(.headline)
+                            .foregroundStyle(Theme.berry)
+                        cueLine("Exercise name", ExamPrepData.levelIMat35[currentIndex])
+                        cueLine("Transition", TeachingCueCatalog.transition(for: currentIndex))
+                        cueLine("Setup", "Use your prepared setup cue for this exercise.")
+                        cueLine("Execution", "Use your prepared execution cue for this exercise.")
+                        cueLine("Powerhouse cue", "Add one specific Powerhouse cue for this exercise.")
+                        HStack {
+                            Button("Previous card") {
+                                guard cardPosition > 0 else { return }
+                                cardPosition -= 1
+                            }
+                            Spacer()
+                            Button("Next card") {
+                                guard cardPosition < segmentIndices.count - 1 else { return }
+                                cardPosition += 1
+                            }
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Theme.rose)
+                    }
+                    .padding(14)
+                    .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+                }
+
+                examPrepInfoCard(lines: [
+                    "Use less setup and transition cueing for familiar introductory exercises, and more for harder ones, with economy of words.",
+                    "Use Building Block progressions, fold in Fundamentals where appropriate, and use Add-In and preparatory exercises.",
+                    "Assessment emphasis: 5-Part Formula for Success with layering cues."
+                ])
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("13-point rubric (1 = ready, 0 = not ready)")
+                        .font(.headline)
+                        .foregroundStyle(Theme.berry)
+                    ForEach(Array(TeachingRubric.items.enumerated()), id: \.offset) { idx, label in
+                        Toggle(label, isOn: $rubricValues[idx])
+                            .tint(Theme.rose)
+                    }
+                    Button("Save practice score") {
+                        let score = rubricValues.filter { $0 }.count
+                        examPrepStore.recordTeachingPractice(segmentIndices: segmentIndices, score: score)
+                        saveStatus = "Saved \(score)/13."
+                        AppHaptics.success()
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Theme.rose, in: Capsule())
+                    if !saveStatus.isEmpty {
+                        Text(saveStatus)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.sage)
+                    }
+                }
+                .padding(14)
+                .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+            }
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Teaching Practice")
+        .navigationBarTitleDisplayMode(.inline)
+        .onReceive(tick) { _ in
+            if timerRunning && timerSeconds > 0 {
+                timerSeconds -= 1
+                if timerSeconds == 0 {
+                    AppHaptics.warning()
+                }
+            }
+        }
+    }
+
+    private func assignSegment() {
+        let count = Int.random(in: 6...9)
+        let start = Int.random(in: 0...(ExamPrepData.levelIMat35.count - count))
+        segmentIndices = Array(start..<(start + count))
+        cardPosition = 0
+        saveStatus = ""
+    }
+
+    private func cueLine(_ title: String, _ text: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Theme.sage)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown)
+        }
+    }
+}
+
+struct TheoryQuizView: View {
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
+    @State private var roundQuestions: [TheoryQuestion] = []
+    @State private var currentQuestion = 0
+    @State private var selectedOption: Int?
+    @State private var roundScore = 0
+    @State private var roundMissed: [String] = []
+    @State private var roundScoreSaved = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                if roundQuestions.isEmpty {
+                    VStack(spacing: 10) {
+                        Button("Start shuffled round") {
+                            startRound(missedOnly: false)
+                        }
+                        .examPrimaryButton()
+                        Button("Retry missed pile (\(examPrepStore.state.missedQuestionIDs.count))") {
+                            startRound(missedOnly: true)
+                        }
+                        .examSecondaryButton(disabled: examPrepStore.state.missedQuestionIDs.isEmpty)
+                        .disabled(examPrepStore.state.missedQuestionIDs.isEmpty)
+                    }
+                    .padding(14)
+                    .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+                } else if currentQuestion < roundQuestions.count {
+                    let question = roundQuestions[currentQuestion]
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Question \(currentQuestion + 1) of \(roundQuestions.count)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                        Text(question.prompt)
+                            .font(.headline)
+                            .foregroundStyle(Theme.berry)
+
+                        ForEach(Array(question.options.enumerated()), id: \.offset) { idx, option in
+                            Button {
+                                guard selectedOption == nil else { return }
+                                selectedOption = idx
+                                let correct = idx == question.correctIndex
+                                if correct {
+                                    roundScore += 1
+                                    examPrepStore.resolveMissedQuestion(id: question.id)
+                                    AppHaptics.success()
+                                } else {
+                                    roundMissed.append(question.id)
+                                    examPrepStore.markMissedQuestion(id: question.id)
+                                    AppHaptics.warning()
+                                }
+                            } label: {
+                                Text(option)
+                                    .font(.subheadline)
+                                    .foregroundStyle(answerColor(for: idx, question: question))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 10)
+                                    .padding(.horizontal, 12)
+                                    .background(Theme.background, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if let selectedOption {
+                            let isCorrect = selectedOption == question.correctIndex
+                            Text(isCorrect ? "Correct." : "Incorrect.")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(isCorrect ? Theme.sage : Theme.clay)
+                            Text("Right answer: \(question.options[question.correctIndex])")
+                                .font(.subheadline)
+                            Text(question.explanation)
+                                .font(.footnote)
+                                .foregroundStyle(Theme.brown.opacity(0.8))
+                            Button("Next question") {
+                                self.selectedOption = nil
+                                currentQuestion += 1
+                            }
+                            .examPrimaryButton()
+                        }
+                    }
+                    .padding(14)
+                    .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+                } else {
+                    let percent = Int((Double(roundScore) / Double(max(roundQuestions.count, 1)) * 100.0).rounded())
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Round complete")
+                            .font(.headline)
+                            .foregroundStyle(Theme.berry)
+                        Text("Score: \(roundScore)/\(roundQuestions.count) (\(percent)%)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Theme.rose)
+                        if !roundScoreSaved {
+                            Color.clear
+                                .frame(height: 0)
+                                .onAppear {
+                                    roundScoreSaved = true
+                                    examPrepStore.recordTheoryQuizScore(percent)
+                                }
+                        }
+                        Button("Start new shuffled round") {
+                            startRound(missedOnly: false)
+                        }
+                        .examPrimaryButton()
+                        Button("Retry missed from this round (\(roundMissed.count))") {
+                            startRoundFrom(ids: roundMissed)
+                        }
+                        .examSecondaryButton(disabled: roundMissed.isEmpty)
+                        .disabled(roundMissed.isEmpty)
+                    }
+                    .padding(14)
+                    .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+                }
+            }
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Theory Quiz")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func startRound(missedOnly: Bool) {
+        if missedOnly {
+            startRoundFrom(ids: examPrepStore.state.missedQuestionIDs)
+            return
+        }
+        roundQuestions = ExamPrepData.theoryQuestions.shuffled()
+        resetRound()
+    }
+
+    private func startRoundFrom(ids: [String]) {
+        let set = Set(ids)
+        roundQuestions = ExamPrepData.theoryQuestions.filter { set.contains($0.id) }.shuffled()
+        resetRound()
+    }
+
+    private func resetRound() {
+        currentQuestion = 0
+        selectedOption = nil
+        roundScore = 0
+        roundMissed = []
+        roundScoreSaved = false
+        if roundQuestions.isEmpty {
+            roundQuestions = ExamPrepData.theoryQuestions.shuffled()
+        }
+    }
+
+    private func answerColor(for index: Int, question: TheoryQuestion) -> Color {
+        guard let selectedOption else { return Theme.brown }
+        if index == question.correctIndex { return Theme.sage }
+        if index == selectedOption && selectedOption != question.correctIndex { return Theme.clay }
+        return Theme.brown.opacity(0.7)
+    }
+}
+
+struct ExamChecklistView: View {
+    @EnvironmentObject private var examPrepStore: ExamPrepStore
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(ExamChecklistItem.items) { item in
+                    Toggle(item.text, isOn: binding(for: item.id))
+                        .tint(Theme.rose)
+                        .padding(12)
+                        .background(Theme.cream, in: RoundedRectangle(cornerRadius: 14))
+                }
+            }
+            .padding(20)
+        }
+        .background(Theme.background.ignoresSafeArea())
+        .navigationTitle("Exam Checklist")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func binding(for id: String) -> Binding<Bool> {
+        Binding(
+            get: { examPrepStore.state.checklist[id] ?? false },
+            set: { newValue in
+                examPrepStore.state.checklist[id] = newValue
+                examPrepStore.save()
+            }
+        )
+    }
+}
+
+private func examPrepInfoCard(lines: [String]) -> some View {
+    VStack(alignment: .leading, spacing: 8) {
+        ForEach(lines, id: \.self) { line in
+            Text("• \(line)")
+                .font(.subheadline)
+                .foregroundStyle(Theme.brown)
+        }
+    }
+    .padding(14)
+    .background(Theme.cream, in: RoundedRectangle(cornerRadius: 16))
+}
+
+private extension View {
+    func examPrimaryButton() -> some View {
+        self
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.rose, in: Capsule())
+    }
+
+    func examSecondaryButton(disabled: Bool) -> some View {
+        self
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(disabled ? Theme.brown.opacity(0.5) : Theme.rose)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Theme.background, in: Capsule())
+            .overlay(Capsule().stroke(Theme.petal, lineWidth: 1))
+    }
+}
+
+private enum ExamPrepMatMode: String, CaseIterable {
+    case whatComesNext = "What comes next?"
+    case putInOrder = "Put in order"
+    case fullRecall = "Full recall"
+}
+
+private struct ExamPrepFullRecallReport {
+    let accuracy: Int
+    let mismatchIndices: [Int]
+    let details: [String]
+}
+
+@MainActor
+final class ExamPrepStore: ObservableObject {
+    @Published var state = ExamPrepState()
+
+    private let fileURL: URL
+    private let encoder = JSONEncoder()
+    private let decoder = JSONDecoder()
+
+    init(filename: String = "exam-prep.json") {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first ?? FileManager.default.temporaryDirectory
+        fileURL = docs.appendingPathComponent(filename)
+        load()
+    }
+
+    func load() {
+        guard let data = try? Data(contentsOf: fileURL),
+              let decoded = try? decoder.decode(ExamPrepState.self, from: data) else {
+            state = ExamPrepState()
+            save()
+            return
+        }
+        state = decoded
+    }
+
+    func save() {
+        do {
+            let data = try encoder.encode(state)
+            try data.write(to: fileURL, options: .atomic)
+        } catch {
+            print("Failed to save exam prep data: \(error)")
+        }
+    }
+
+    func recordWhatComesNext(expectedNextIndex: Int, wasCorrect: Bool) {
+        state.orderDrillAttempts += 1
+        if wasCorrect {
+            state.orderDrillCorrect += 1
+        } else {
+            state.missCounts[expectedNextIndex, default: 0] += 1
+        }
+        save()
+    }
+
+    func recordChunkResult(expected: [Int], actual: [Int]) {
+        for i in 0..<min(expected.count, actual.count) where expected[i] != actual[i] {
+            state.missCounts[expected[i], default: 0] += 1
+        }
+        save()
+    }
+
+    func recordFullRecallMismatches(_ indices: [Int]) {
+        for index in indices {
+            state.missCounts[index, default: 0] += 1
+        }
+        save()
+    }
+
+    func weightedPromptIndex(maxIndex: Int) -> Int {
+        let candidates = Array(0...max(0, maxIndex))
+        return weightedPick(in: candidates) ?? 0
+    }
+
+    func weightedChunkStart(chunkLength: Int, totalCount: Int) -> Int {
+        let maxStart = max(0, totalCount - chunkLength)
+        let candidates = Array(0...maxStart)
+        return weightedPick(in: candidates) ?? 0
+    }
+
+    func topMissedSteps(limit: Int) -> [(index: Int, count: Int)] {
+        state.missCounts
+            .sorted {
+                if $0.value == $1.value { return $0.key < $1.key }
+                return $0.value > $1.value
+            }
+            .prefix(limit)
+            .map { ($0.key, $0.value) }
+    }
+
+    func recordTechniqueRun(completedSteps: Int, totalSteps: Int, elapsedSeconds: Int) {
+        state.lastTechniqueRun = TechniqueRunRecord(
+            date: Date(),
+            completedSteps: completedSteps,
+            totalSteps: totalSteps,
+            elapsedSeconds: elapsedSeconds
+        )
+        save()
+    }
+
+    func recordTeachingPractice(segmentIndices: [Int], score: Int) {
+        state.lastTeachingPractice = TeachingPracticeRecord(
+            date: Date(),
+            segmentIndices: segmentIndices,
+            score: score
+        )
+        save()
+    }
+
+    func markMissedQuestion(id: String) {
+        if !state.missedQuestionIDs.contains(id) {
+            state.missedQuestionIDs.append(id)
+            save()
+        }
+    }
+
+    func resolveMissedQuestion(id: String) {
+        let originalCount = state.missedQuestionIDs.count
+        state.missedQuestionIDs.removeAll(where: { $0 == id })
+        if state.missedQuestionIDs.count != originalCount {
+            save()
+        }
+    }
+
+    func recordTheoryQuizScore(_ percent: Int) {
+        if percent > state.bestTheoryQuizScore {
+            state.bestTheoryQuizScore = percent
+            save()
+        }
+    }
+
+    var lastTechniqueSummary: String {
+        guard let run = state.lastTechniqueRun else { return "None" }
+        return "\(run.completedSteps)/\(run.totalSteps) • \(TimeFormat.mmss(run.elapsedSeconds))"
+    }
+
+    var lastTeachingSummary: String {
+        guard let teaching = state.lastTeachingPractice else { return "None" }
+        return "\(teaching.score)/13"
+    }
+
+    private func weightedPick(in values: [Int]) -> Int? {
+        guard !values.isEmpty else { return nil }
+        let weighted = values.map { value in
+            let misses = state.missCounts[value, default: 0]
+            return max(1, 1 + misses * 3)
+        }
+        let total = weighted.reduce(0, +)
+        guard total > 0 else { return values.randomElement() }
+        var threshold = Int.random(in: 1...total)
+        for (idx, value) in values.enumerated() {
+            threshold -= weighted[idx]
+            if threshold <= 0 { return value }
+        }
+        return values.last
+    }
+}
+
+struct ExamPrepState: Codable {
+    var orderDrillAttempts: Int = 0
+    var orderDrillCorrect: Int = 0
+    var missCounts: [Int: Int] = [:]
+    var lastTechniqueRun: TechniqueRunRecord?
+    var lastTeachingPractice: TeachingPracticeRecord?
+    var bestTheoryQuizScore: Int = 0
+    var missedQuestionIDs: [String] = []
+    var checklist: [String: Bool] = [:]
+
+    var orderDrillAccuracy: Int {
+        guard orderDrillAttempts > 0 else { return 0 }
+        let value = (Double(orderDrillCorrect) / Double(orderDrillAttempts) * 100.0).rounded()
+        return Int(value)
+    }
+}
+
+struct TechniqueRunRecord: Codable {
+    var date: Date
+    var completedSteps: Int
+    var totalSteps: Int
+    var elapsedSeconds: Int
+}
+
+struct TeachingPracticeRecord: Codable {
+    var date: Date
+    var segmentIndices: [Int]
+    var score: Int
+}
+
+private struct ExamChecklistItem: Identifiable {
+    let id: String
+    let text: String
+
+    static let items: [ExamChecklistItem] = [
+        .init(id: "online_assignments", text: "100% of online assignments complete"),
+        .init(id: "hours_done", text: "All required technique practice, practice teaching and observation hours done"),
+        .init(id: "theory_passed", text: "Online theoretical exam passed (required before scheduling the practical)"),
+        .init(id: "students_ready", text: "3 students lined up for the teaching portion"),
+        .init(id: "practical_scheduled", text: "Practical scheduled (about 45–60 min; in person if within an hour of a Master Instructor or Educational Center, otherwise virtual). Teaching comes first, then technique.")
+    ]
+}
+
+private enum TeachingRubric {
+    static let items: [String] = [
+        "1. Taught exercises in correct order",
+        "2. Exercise name given first",
+        "3. Teaches through transitions",
+        "4. Corrects student setups; less setup for introductory exercises",
+        "5. Correct technique / direct cueing",
+        "6. Keeps group moving together",
+        "7. Powerhouse cue for each exercise",
+        "8. Major priority corrections (gross movement patterns), broad to narrow",
+        "9. Voice: volume appropriate, voice sets rhythm",
+        "10. Safety: environment, mindful of students",
+        "11. Posture: stands to be seen, Pilates posture, moves with purpose (\"do the walk\")",
+        "12. Touch: at least 1, moving into touch and out to see; avoids over-touching",
+        "13. Progression: teaches to the student's ideal, appropriate tempo"
+    ]
+}
+
+private enum TechniqueErrorCatalog {
+    static func errors(for step: String) -> [String] {
+        var items: [String] = [
+            "Forgetting an exercise or doing it out of order",
+            "Incorrect body setup",
+            "Improper gross movement pattern"
+        ]
+        if step.contains("Hundred") || step.contains("Swan I") {
+            items.append("Improper neck/head alignment in spinal flexion and extension")
+        }
+        if step == "Hundred"
+            || step == "Single Leg Stretch"
+            || step == "Double Leg Stretch"
+            || step == "Single Straight Leg Stretch / Scissors"
+            || step == "Double Straight Leg \"Lower Lift\""
+            || step == "Criss Cross" {
+            items.append("Losing the Powerhouse and letting the low back lift with the head up (Hundred, abdominal series)")
+        }
+        if step == "One Leg Circle" {
+            items.append("Lumbo-pelvic instability (e.g., rocking side to side)")
+        }
+        if step == "Spine Stretch Forward" || step == "Roll Up" {
+            items.append("Hinging from the hips instead of a C-curve")
+        }
+        if step == "Teaser I" {
+            items.append("Momentum or hoisting up (e.g., Teaser I)")
+        }
+        return items
+    }
+}
+
+private enum TeachingCueCatalog {
+    static func transition(for index: Int) -> String {
+        let step = ExamPrepData.levelIMat35[index]
+        if step.hasPrefix("(") {
+            return step
+        }
+        if step == "Side Kick Series: Front and Back"
+            || step == "Side Kick Series: Up and Down"
+            || step == "Side Kick Series: Circles"
+            || step == "Side Kick Series: Inner Thigh Lift and Circles" {
+            return "(Beats on Belly Transition) between sides"
+        }
+        return "Use the listed transition into this exercise."
+    }
+}
+
+private struct TheoryQuestion: Identifiable {
+    let id: String
+    let prompt: String
+    let options: [String]
+    let correctIndex: Int
+    let explanation: String
+}
+
+private enum ExamPrepData {
+    static let levelIMat35: [String] = [
+        "Hundred",
+        "Roll Up",
+        "One Leg Circle",
+        "Rolling Like a Ball",
+        "Single Leg Stretch",
+        "Double Leg Stretch",
+        "Single Straight Leg Stretch / Scissors",
+        "Double Straight Leg \"Lower Lift\"",
+        "Criss Cross",
+        "Spine Stretch Forward",
+        "Open Leg Rocker Prep",
+        "Open Leg Rocker",
+        "Corkscrew I",
+        "Corkscrew II",
+        "Saw",
+        "Swan I – Neck Roll",
+        "Single Leg Kick",
+        "(Rest Transition)",
+        "Neck Pull",
+        "Shoulder Bridge Prep",
+        "Spine Twist",
+        "Side Kick Series: Front and Back",
+        "Side Kick Series: Up and Down",
+        "Side Kick Series: Circles",
+        "Side Kick Series: Inner Thigh Lift and Circles",
+        "(Beats on Belly Transition)",
+        "Teaser – One Leg",
+        "Teaser Prep",
+        "Teaser I",
+        "Swimming – Prep",
+        "Leg Pull Front",
+        "Leg Pull Back Prep",
+        "Mermaid Stretch",
+        "Seal",
+        "Push-Up Series"
+    ]
+
+    static let theoryQuestions: [TheoryQuestion] = [
+        .init(id: "fundamentals", prompt: "True or false: Fundamentals are mini exercises that improve basic biomechanical patterns.", options: ["True", "False"], correctIndex: 0, explanation: "True. Fundamentals are mini exercises that improve basic biomechanical patterns."),
+        .init(id: "rib-arm", prompt: "Rib Cage Arms teaches:", options: ["Moving the arms from the back and connecting ribs to scapula", "Pelvic tuck only", "Breath retention", "Speed cueing"], correctIndex: 0, explanation: "Rib Cage Arms teaches arm movement from the back and the rib-to-scapula connection."),
+        .init(id: "principles", prompt: "Which list is the six Peak principles?", options: ["breath, concentration, centering, control, precision, flowing movement", "breath, speed, strength, stretch, stamina, precision", "concentration, rhythm, safety, posture, breath, cueing", "control, progression, flow, setup, touch, precision"], correctIndex: 0, explanation: "The six principles are breath, concentration, centering, control, precision, and flowing movement."),
+        .init(id: "precision", prompt: "Precision corrects:", options: ["faulty movement patterns", "class attendance", "equipment setup only", "homework compliance"], correctIndex: 0, explanation: "Precision is used to correct faulty movement patterns."),
+        .init(id: "five-part", prompt: "Which is NOT one of the 5-Part Formula for Success?", options: ["Flowing Movement", "Session Format", "Presentation Skills", "Progression Guidelines"], correctIndex: 0, explanation: "Flowing Movement is a principle, not one of the five parts."),
+        .init(id: "methodology", prompt: "Teaching methodology tenets include setup, execution, flow, cueing, rhythm and voice, and:", options: ["breath dynamics", "maximal loading", "performance testing", "competition prep"], correctIndex: 0, explanation: "Breath dynamics is one of the teaching methodology tenets."),
+        .init(id: "first-cue", prompt: "First thing to cue in communication order:", options: ["Exercise name", "Transition", "Setup", "Powerhouse cue"], correctIndex: 0, explanation: "Communication starts with the exercise name."),
+        .init(id: "touch", prompt: "Touch techniques include:", options: ["moving-into, moving-away, guiding, stabilizing", "forcing and pulling", "spotting only", "visual cues only"], correctIndex: 0, explanation: "Touch techniques are moving-into, moving-away, guiding, and stabilizing."),
+        .init(id: "progressions", prompt: "True or false: Progression guidelines include teaching transitions as exercises.", options: ["True", "False"], correctIndex: 0, explanation: "True. Teaching transitions as exercises is listed in progression guidelines."),
+        .init(id: "learning", prompt: "Stages of learning are:", options: ["cognitive, associative, autonomous", "novice, intermediate, expert", "setup, execution, flow", "slow, medium, fast"], correctIndex: 0, explanation: "The stages are cognitive, associative, and autonomous."),
+        .init(id: "fourS", prompt: "The Four S's are:", options: ["stability, strength, stretch, stamina", "stability, setup, stretch, speed", "strength, stamina, speed, symmetry", "safety, setup, strength, stamina"], correctIndex: 0, explanation: "The Four S's are stability, strength, stretch, and stamina."),
+        .init(id: "mind", prompt: "Five parts of the mind:", options: ["will, intelligence, intuition, imagination, memory", "focus, control, precision, flow, memory", "breath, will, rhythm, safety, memory", "intelligence, pace, will, setup, touch"], correctIndex: 0, explanation: "The five parts are will, intelligence, intuition, imagination, and memory."),
+        .init(id: "box", prompt: "Box means:", options: ["shoulder to shoulder, hip to hip", "head to feet line only"], correctIndex: 0, explanation: "Box is shoulder to shoulder and hip to hip."),
+        .init(id: "powerhouse", prompt: "Powerhouse is supported by:", options: ["inner thighs and seat (4-inch band)", "soleus and calves"], correctIndex: 0, explanation: "Powerhouse support is from the inner thighs and seat (4-inch band)."),
+        .init(id: "soleus", prompt: "True or false: The soleus is part of the Powerhouse.", options: ["True", "False"], correctIndex: 1, explanation: "False. Spinal erectors are part of it; soleus is not."),
+        .init(id: "core", prompt: "Core and Powerhouse are:", options: ["not the same", "the same"], correctIndex: 0, explanation: "Core and Powerhouse are not the same."),
+        .init(id: "breath-exhale", prompt: "When cueing breath, emphasis should be on:", options: ["exhalation", "inhalation"], correctIndex: 0, explanation: "Cueing breath should emphasize exhalation."),
+        .init(id: "neutral", prompt: "True or false: Neutral pelvis and neutral spine are the same.", options: ["True", "False"], correctIndex: 1, explanation: "False. They are not the same."),
+        .init(id: "tilt", prompt: "Anterior pelvic tilt means:", options: ["pelvis tips forward and the low back arches", "pelvis tips back and low back flattens"], correctIndex: 0, explanation: "Anterior tilt is forward tip of pelvis with lumbar arching."),
+        .init(id: "circumduction", prompt: "Circumduction combines:", options: ["flexion, extension, lateral flexion and slight rotation", "rotation only"], correctIndex: 0, explanation: "Circumduction combines flexion, extension, lateral flexion and slight rotation."),
+        .init(id: "ideal", prompt: "True or false: The ideal version of an exercise is exactly as pictured in Joseph Pilates' books.", options: ["True", "False"], correctIndex: 1, explanation: "False. The ideal version is not exactly as pictured."),
+        .init(id: "matfirst", prompt: "Joseph Pilates created:", options: ["Mat first", "Apparatus first"], correctIndex: 0, explanation: "Joseph Pilates created the Mat first."),
+        .init(id: "animals", prompt: "Joseph Pilates based his work on:", options: ["animals", "Olympic lifting"], correctIndex: 0, explanation: "His work was based on animals."),
+        .init(id: "benefits", prompt: "True or false: Pilates benefits include increasing maximal strength.", options: ["True", "False"], correctIndex: 1, explanation: "False. Increasing maximal strength is not listed as a benefit here."),
+        .init(id: "endings", prompt: "Endings are:", options: ["postural exercises", "high intensity intervals"], correctIndex: 0, explanation: "Endings are postural exercises."),
+        .init(id: "wall", prompt: "The wall can be used to:", options: ["measure postural progress", "increase cardio intensity"], correctIndex: 0, explanation: "The wall can measure postural progress."),
+        .init(id: "homework", prompt: "Appropriate homework includes:", options: ["Lunges and Splits", "Teaser only"], correctIndex: 0, explanation: "Lunges and Splits are appropriate homework."),
+        .init(id: "roll-seal", prompt: "Rolling Like a Ball and Seal are:", options: ["introductory exercises not taught in the first session", "first-session essentials"], correctIndex: 0, explanation: "They are introductory but not taught in the first session."),
+        .init(id: "beats", prompt: "Side Kick transition between sides is:", options: ["Beats on Belly", "Rest Transition"], correctIndex: 0, explanation: "The transition is Beats on Belly."),
+        .init(id: "hundred-head", prompt: "First body part lifted in the Hundred:", options: ["head", "legs"], correctIndex: 0, explanation: "The head is lifted first in the Hundred."),
+        .init(id: "session-format", prompt: "Session format fact:", options: ["Parts A and B are interchangeable; Part D = Endings", "Part D = Warm-up only"], correctIndex: 0, explanation: "Parts A and B are interchangeable, and Part D is Endings.")
+    ]
+}
+
+private func buildExamPrepFullRecallReport(input: String) -> ExamPrepFullRecallReport {
+    let expected = ExamPrepData.levelIMat35
+    let entered = input
+        .split(whereSeparator: \.isNewline)
+        .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+
+    let normalizedExpected = expected.map(normalizeExamEntry)
+    let normalizedEntered = entered.map(normalizeExamEntry)
+
+    var mismatchIndices: [Int] = []
+    var details: [String] = []
+    var correct = 0
+
+    for idx in 0..<expected.count {
+        let expectedText = normalizedExpected[idx]
+        guard idx < normalizedEntered.count else {
+            mismatchIndices.append(idx)
+            details.append("Step \(idx + 1): missed “\(expected[idx])”.")
+            continue
+        }
+        let enteredText = normalizedEntered[idx]
+        if enteredText == expectedText {
+            correct += 1
+        } else {
+            mismatchIndices.append(idx)
+            if let actualPosition = normalizedEntered.firstIndex(of: expectedText) {
+                details.append("Step \(idx + 1): swapped. Expected “\(expected[idx])”; appeared at step \(actualPosition + 1).")
+            } else {
+                details.append("Step \(idx + 1): expected “\(expected[idx])”, found “\(entered[idx])”.")
+            }
+        }
+    }
+
+    if normalizedEntered.count > expected.count {
+        for idx in expected.count..<normalizedEntered.count {
+            details.append("Extra entry at step \(idx + 1): “\(entered[idx])”.")
+        }
+    }
+
+    let accuracy = Int((Double(correct) / Double(expected.count) * 100.0).rounded())
+    return ExamPrepFullRecallReport(accuracy: accuracy, mismatchIndices: mismatchIndices, details: details)
+}
+
+private func normalizeExamEntry(_ value: String) -> String {
+    value
+        .lowercased()
+        .replacingOccurrences(of: "“", with: "\"")
+        .replacingOccurrences(of: "”", with: "\"")
+        .split(whereSeparator: \.isWhitespace)
+        .joined(separator: " ")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+}
+
+private enum AppHaptics {
+    static func dragStep() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
+    static func drop() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    static func success() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    static func warning() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+
+    static func runTransition() {
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+    }
+
+    static func tenSecondWarning() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
 }
 
