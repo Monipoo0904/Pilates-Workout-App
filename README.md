@@ -9,6 +9,12 @@ PilatesTimer is an iOS + watchOS app for managing Pilates workouts, timing class
 - Import class data from JSON or clipboard-friendly formats
 - Mirror state between iPhone and Apple Watch
 - Run as a shared SwiftUI app with both mobile and wearable targets
+- Exam Prep section with:
+  - Level I Mat (35) order drills (what comes next, put in order, full recall with miss tracking)
+  - Technique self-check run-through mode and point-losing error reminders
+  - Teaching practice segment assignment, 15-minute timer, cue-card flow, and 13-point rubric scoring
+  - Theory quiz rounds with instant feedback, explanations, and missed-question retry pile
+  - Exam checklist and home-screen summary metrics
 
 ## Project structure
 
